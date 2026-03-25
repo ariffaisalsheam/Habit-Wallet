@@ -9,27 +9,14 @@ import { useHabitsStore } from "@/features/habits/store/use-habits-store";
 import { getSyncQueueCount, setLastSyncNow } from "@/lib/storage/sync-queue";
 import { isCloudSyncEnabledForCurrentUser } from "@/lib/subscription/access";
 import { getStoredAppLanguage } from "@/lib/i18n/language";
+import { applyTheme, resolveInitialTheme } from "@/lib/theme/client";
 
 type AppProvidersProps = {
   children: ReactNode;
 };
 
 function applyInitialTheme() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const storedTheme = window.localStorage.getItem("hw_theme");
-  const theme =
-    storedTheme === "light" || storedTheme === "dark"
-      ? storedTheme
-      : window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-
-  const root = document.documentElement;
-  root.classList.toggle("dark", theme === "dark");
-  root.style.colorScheme = theme;
+  applyTheme(resolveInitialTheme(), { persist: false, emit: false });
 }
 
 function applyInitialLanguage() {

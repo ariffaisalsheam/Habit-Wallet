@@ -1,34 +1,21 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { MoonStar, SunMedium } from "lucide-react";
-
-const THEME_KEY = "hw_theme";
-
-function getCurrentTheme() {
-  if (typeof document === "undefined") {
-    return "light" as const;
-  }
-
-  return document.documentElement.classList.contains("dark") ? "dark" : "light";
-}
-
-function applyTheme(theme: "light" | "dark") {
-  if (typeof document === "undefined") {
-    return;
-  }
-
-  const root = document.documentElement;
-  root.classList.toggle("dark", theme === "dark");
-  root.style.colorScheme = theme;
-}
+import {
+  applyTheme,
+  getCurrentTheme,
+  subscribeToTheme,
+  type AppTheme,
+} from "@/lib/theme/client";
 
 export function ThemeToggle() {
-  const isDark = getCurrentTheme() === "dark";
+  const theme = useSyncExternalStore<AppTheme>(subscribeToTheme, getCurrentTheme, () => "light");
+  const isDark = theme === "dark";
 
   function toggleTheme() {
     const nextTheme = isDark ? "light" : "dark";
     applyTheme(nextTheme);
-    window.localStorage.setItem(THEME_KEY, nextTheme);
   }
 
   return (

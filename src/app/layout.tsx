@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
 import "./globals.css";
@@ -54,6 +54,22 @@ export const metadata: Metadata = {
     apple: [{ url: "/logo/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
   manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "HabitWallet",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f5f8f4" },
+    { media: "(prefers-color-scheme: dark)", color: "#161d20" },
+  ],
 };
 
 export default function RootLayout({

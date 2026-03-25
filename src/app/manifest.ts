@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Offline-first habit and finance tracking for Bangladeshi mobile users.",
     start_url: "/",
     display: "standalone",
-    background_color: "#f7f9f8",
-    theme_color: "#1f6b4a",
+    background_color: "#f5f8f4",
+    theme_color: "#f5f8f4",
     icons: [
       {
         src: "/logo/android-chrome-192x192.png",
