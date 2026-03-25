@@ -1,26 +1,69 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f9f8;
+  --surface: #ffffff;
+  --foreground: #112219;
+  --muted-foreground: #486157;
+  --primary: #1f6b4a;
+  --secondary: #ff6b35;
+  --accent: #ffb627;
+  --border: #d9e6df;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-border: var(--border);
+  --font-sans: var(--font-manrope);
+  --font-mono: var(--font-space-grotesk);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-manrope), sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.dark {
+  --background: #0f1419;
+  --surface: #1a1f2e;
+  --foreground: #ffffff;
+  --muted-foreground: #a8b7b0;
+  --primary: #31c48d;
+  --secondary: #ff875f;
+  --accent: #ffd166;
+  --border: #2a3448;
+}
+
+.app-noise {
+  background-image:
+    radial-gradient(circle at 0% 0%, rgb(31 107 74 / 0.18), transparent 40%),
+    radial-gradient(circle at 100% 100%, rgb(255 107 53 / 0.16), transparent 38%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.65), transparent 45%);
+}
+
+.dark .app-noise {
+  background-image:
+    radial-gradient(circle at 0% 0%, rgb(49 196 141 / 0.2), transparent 40%),
+    radial-gradient(circle at 100% 100%, rgb(255 135 95 / 0.17), transparent 38%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.03), transparent 45%);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+input,
+select {
+  touch-action: manipulation;
 }
