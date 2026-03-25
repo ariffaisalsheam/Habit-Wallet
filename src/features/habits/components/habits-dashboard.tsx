@@ -272,31 +272,37 @@ export function HabitsDashboard() {
   }
 
   return (
-    <section className="space-y-4 pb-8 animate-soft-rise">
-      {syncing ? <p className="text-xs text-muted-foreground">Syncing habits...</p> : null}
+    <section className="space-y-5 pb-10 animate-soft-rise">
+      {syncing ? (
+        <p className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-surface-elevated px-3 py-1 text-xs text-muted-foreground">
+          <RefreshCw size={12} className="animate-spin" /> Syncing habits...
+        </p>
+      ) : null}
       {pendingQueueCount > 0 ? (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          <p>{pendingQueueCount} habit change(s) queued for cloud sync.</p>
+        <div className="glass-panel flex items-center justify-between gap-3 rounded-2xl border-amber-300/70 bg-amber-50/80 px-3 py-2 text-xs text-amber-900 dark:bg-amber-300/10 dark:text-amber-200">
+          <p className="inline-flex items-center gap-1.5">
+            <AlertTriangle size={14} /> {pendingQueueCount} habit change(s) queued for cloud sync.
+          </p>
           <button
             type="button"
             onClick={() => {
               void handleSyncNow();
             }}
             disabled={syncing}
-            className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-amber-300 bg-white px-2.5 font-semibold text-amber-900 disabled:opacity-60"
+            className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-amber-300 bg-white px-2.5 font-semibold text-amber-900 transition hover:bg-amber-100 disabled:opacity-60"
           >
             <RefreshCw size={13} /> Sync now
           </button>
         </div>
       ) : null}
 
-      <div className="pointer-events-none fixed right-3 top-20 z-[95] flex w-[min(90vw,24rem)] flex-col gap-2">
+      <div className="pointer-events-none fixed left-3 right-3 top-[5.8rem] z-[95] flex flex-col gap-2 sm:left-auto sm:right-4 sm:w-[min(90vw,24rem)]">
         {notices.map((notice) => (
           <div
             key={notice.id}
             role="status"
             aria-live="polite"
-            className={`pointer-events-auto rounded-2xl border px-3 py-2 text-sm shadow-[var(--soft-shadow)] ${
+            className={`animate-toast-in pointer-events-auto rounded-2xl border px-3 py-2 text-sm shadow-[var(--soft-shadow)] ${
               notice.kind === "error"
                 ? "border-amber-300 bg-amber-100 text-amber-900"
                 : "border-emerald-300 bg-emerald-100 text-emerald-900"
@@ -609,9 +615,20 @@ export function HabitsDashboard() {
                 </div>
               </form>
             ) : (
-              <p className="mt-3 text-sm text-muted-foreground">
-                Keep this tucked away to reduce clutter. Open only when you are ready to add something new.
-              </p>
+              <div className="mt-3 space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Keep this tucked away to reduce clutter. Open only when you are ready to add something new.
+                </p>
+                {habits.length === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(true)}
+                    className="inline-flex min-h-10 items-center rounded-full bg-primary/85 px-4 text-sm font-semibold text-white"
+                  >
+                    Add your first habit
+                  </button>
+                ) : null}
+              </div>
             )}
           </article>
         </div>

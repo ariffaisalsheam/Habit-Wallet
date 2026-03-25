@@ -8,7 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { getStoredUserSession, USER_SESSION_EVENT } from "@/lib/storage/session";
 import { getCachedUserProfile, getOrCreateUserProfile, UserProfile } from "@/lib/profile/service";
 import Link from "next/link";
-import { Crown, Zap } from "lucide-react";
+import { CloudOff, CloudUpload, Crown, ShieldCheck, Zap } from "lucide-react";
 import { useTransactionsStore } from "@/features/finance/store/use-transactions-store";
 import { useBudgetsStore } from "@/features/finance/store/use-budgets-store";
 import { useHabitsStore } from "@/features/habits/store/use-habits-store";
@@ -143,7 +143,7 @@ export function MobileAppShell({ children, title = "Dashboard" }: MobileAppShell
         <BottomTabBar />
 
         <div className="flex w-full min-w-0 flex-col md:pb-4">
-          <header className="sticky top-0 z-20 rounded-3xl border border-border/70 bg-surface/85 px-4 pb-3 pt-3 backdrop-blur md:px-5 md:py-4">
+          <header className="glass-panel sticky top-0 z-20 rounded-3xl px-4 pb-3 pt-3 md:px-5 md:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 md:gap-3">
                 <Image
@@ -158,7 +158,7 @@ export function MobileAppShell({ children, title = "Dashboard" }: MobileAppShell
                   <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                     {t(language, "shell.brand")}
                   </p>
-                  <h1 className="font-mono text-lg font-semibold leading-none text-foreground md:text-xl">
+                  <h1 className="font-mono text-xl font-semibold leading-none text-foreground md:text-2xl">
                     {displayTitle}
                   </h1>
                 </div>
@@ -196,7 +196,7 @@ export function MobileAppShell({ children, title = "Dashboard" }: MobileAppShell
             </div>
 
             <div
-              className={`mt-2.5 rounded-xl border border-border/60 bg-background/70 px-2.5 py-1.5 text-[10px] font-semibold ${
+              className={`mt-2.5 rounded-xl border border-border/60 bg-background/65 px-3 py-2 text-[11px] font-semibold ${
                 !isPro
                     ? "text-muted-foreground"
                     : !isOnline
@@ -207,7 +207,10 @@ export function MobileAppShell({ children, title = "Dashboard" }: MobileAppShell
               }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span>{syncStatusText}</span>
+                <span className="inline-flex items-center gap-1.5">
+                  {!isPro ? <CloudUpload size={12} /> : !isOnline ? <CloudOff size={12} /> : <ShieldCheck size={12} />}
+                  {syncStatusText}
+                </span>
                 {!isPro && session ? (
                   <Link
                     href="/subscription"

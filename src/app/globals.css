@@ -22,6 +22,8 @@
   --focus-glow: rgb(142 181 214 / 0.28);
   --soft-shadow: 0 20px 45px -30px rgb(63 86 69 / 0.45);
   --card-shadow: 0 14px 30px -22px rgb(64 88 75 / 0.4);
+  --frosted: rgb(255 255 255 / 0.74);
+  --text-soft: color-mix(in oklab, var(--foreground) 84%, white 16%);
 }
 
 @theme inline {
@@ -44,6 +46,12 @@ body {
   font-family: var(--font-manrope), sans-serif;
   min-height: 100vh;
   min-height: 100dvh;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 42%, transparent);
+  color: var(--foreground);
 }
 
 .dark {
@@ -59,6 +67,8 @@ body {
   --focus-glow: rgb(179 169 211 / 0.24);
   --soft-shadow: 0 24px 48px -34px rgb(0 0 0 / 0.75);
   --card-shadow: 0 18px 32px -25px rgb(0 0 0 / 0.7);
+  --frosted: rgb(28 38 43 / 0.74);
+  --text-soft: color-mix(in oklab, var(--foreground) 88%, black 12%);
 }
 
 .app-noise {
@@ -85,6 +95,13 @@ body {
     var(--background);
 }
 
+.glass-panel {
+  background: color-mix(in oklab, var(--frosted) 94%, transparent);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  border: 1px solid color-mix(in oklab, var(--border) 76%, transparent);
+}
+
 .wellness-card {
   background: color-mix(in oklab, var(--surface-elevated) 92%, var(--warm-cream) 8%);
   border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
@@ -109,6 +126,17 @@ body {
 @keyframes soft-rise {
   0% { transform: translateY(8px); opacity: 0; }
   100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes toast-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes premium-shine {
@@ -154,6 +182,10 @@ body {
 
 .animate-soft-rise {
   animation: soft-rise 460ms ease-out;
+}
+
+.animate-toast-in {
+  animation: toast-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .animate-premium-shine {
@@ -267,6 +299,16 @@ body {
 
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--border) 70%, transparent) transparent;
+}
+
+*:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 70%, transparent);
+  outline-offset: 2px;
 }
 
 button, a, input, select {

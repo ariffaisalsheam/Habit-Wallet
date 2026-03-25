@@ -26,7 +26,7 @@ export function BottomTabBar() {
       className="fixed bottom-0 left-0 right-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 md:hidden"
     >
       <ul
-        className="mx-auto grid w-full max-w-lg grid-cols-5 items-end gap-1 rounded-[1.6rem] border border-border/70 bg-surface/92 px-2 py-2 shadow-[var(--card-shadow)] backdrop-blur"
+        className="glass-panel mx-auto grid w-full max-w-lg grid-cols-5 items-end gap-1 rounded-[1.6rem] px-2 py-2 shadow-[var(--soft-shadow)]"
         style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
       >
         {navItems.map((item) => {
@@ -39,7 +39,7 @@ export function BottomTabBar() {
               <Link
                 href={item.href}
                 className={clsx(
-                  "group flex min-h-12 flex-col items-center justify-center transition-all duration-300",
+                  "group relative flex min-h-12 flex-col items-center justify-center transition-all duration-300",
                   isAdd
                     ? clsx(
                         "relative -mt-7 min-h-14 rounded-full",
@@ -48,11 +48,14 @@ export function BottomTabBar() {
                     : clsx(
                         "rounded-full px-1 text-[11px] font-semibold tracking-[0.01em]",
                         isActive
-                          ? "soft-glow-active bg-primary/20 text-foreground"
+                          ? "soft-glow-active bg-primary/24 text-foreground"
                           : "text-muted-foreground hover:bg-surface-elevated hover:text-foreground"
                       )
                 )}
               >
+                {!isAdd && isActive ? (
+                  <span className="absolute -top-1.5 h-1.5 w-7 rounded-full bg-primary/80" aria-hidden="true" />
+                ) : null}
                 <Icon
                   size={isAdd ? 20 : 18}
                   strokeWidth={isAdd ? 2.4 : isActive ? 2.25 : 2}
