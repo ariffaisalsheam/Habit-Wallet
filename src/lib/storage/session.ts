@@ -21,11 +21,13 @@ function isClient() {
 
 function setGuardCookie(name: string, value: string) {
   const maxAge = 60 * 60 * 24 * 7;
-  document.cookie = `${name}=${value}; path=/; max-age=${maxAge}; samesite=lax`;
+  const secure = window.location.protocol === "https:" ? "; secure" : "";
+  document.cookie = `${name}=${value}; path=/; max-age=${maxAge}; samesite=lax${secure}`;
 }
 
 function clearGuardCookie(name: string) {
-  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax`;
+  const secure = window.location.protocol === "https:" ? "; secure" : "";
+  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax${secure}`;
 }
 
 function notifySessionChange() {

@@ -6,11 +6,19 @@ import { ProfileSettingsCard } from "@/components/auth/profile-settings-card";
 import Link from "next/link";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { useSyncExternalStore } from "react";
-import { getStoredAppLanguage, subscribeToAppLanguage } from "@/lib/i18n/language";
+import {
+  getStoredAppLanguage,
+  subscribeToAppLanguage,
+  type AppLanguage,
+} from "@/lib/i18n/language";
 import { t } from "@/lib/i18n/translations";
 
 export default function ProfilePage() {
-  const language = useSyncExternalStore(subscribeToAppLanguage, getStoredAppLanguage, () => "en");
+  const language = useSyncExternalStore<AppLanguage>(
+    subscribeToAppLanguage,
+    getStoredAppLanguage,
+    () => "en"
+  );
 
   return (
     <MobileAppShell title={t(language, "title.profile")}>

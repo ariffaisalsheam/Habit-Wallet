@@ -18,7 +18,6 @@ import { useTransactionsStore } from "@/features/finance/store/use-transactions-
 import { formatBDT } from "@/features/finance/utils";
 import { exportInsightsPdf } from "@/features/analytics/utils";
 import { getOrCreateUserProfile } from "@/lib/profile/service";
-import { PRO_INSIGHT_WINDOWS } from "@/features/subscription/plans";
 
 type InsightWindow = 7 | 30 | 90;
 
@@ -386,7 +385,8 @@ export function InsightsDashboard() {
                   key={windowOption}
                   type="button"
                   onClick={() => {
-                    if (PRO_INSIGHT_WINDOWS.includes(windowOption) && !isPro) {
+                    const isProWindow = windowOption === 90;
+                    if (isProWindow && !isPro) {
                       setUpgradeNotice("90-day insights are available on the Professional plan.");
                       return;
                     }
@@ -398,7 +398,7 @@ export function InsightsDashboard() {
                       : "text-muted-foreground hover:bg-surface-elevated hover:text-foreground"
                   }`}
                 >
-                  {PRO_INSIGHT_WINDOWS.includes(windowOption) && !isPro ? <Lock size={12} /> : <CalendarRange size={13} />} {windowOption}D
+                  {windowOption === 90 && !isPro ? <Lock size={12} /> : <CalendarRange size={13} />} {windowOption}D
                 </button>
               ))}
             </div>

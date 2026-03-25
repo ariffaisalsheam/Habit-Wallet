@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore, useRef } from "react";
 import { logoutUser, refreshStoredSession } from "@/lib/auth/service";
@@ -190,7 +191,15 @@ export function ProfileAuthCard() {
                     <Loader2 className="animate-spin text-primary" />
                   </div>
                 ) : profile?.avatar ? (
-                  <img src={profile.avatar} alt="Avatar" className="h-full w-full object-cover" key={profile.avatar} />
+                  <Image
+                    src={profile.avatar}
+                    alt="Avatar"
+                    width={96}
+                    height={96}
+                    unoptimized
+                    className="h-full w-full object-cover"
+                    key={profile.avatar}
+                  />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10 text-center">
                     <span className="text-2xl font-bold text-primary">

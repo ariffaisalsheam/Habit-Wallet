@@ -18,6 +18,33 @@ export const metadata: Metadata = {
   applicationName: "HabitWallet",
   description:
     "Offline-first habit and personal finance tracking built for Bangladeshi mobile users.",
+  metadataBase: new URL("https://habitwallet.afsbd.tech"),
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    url: "https://habitwallet.afsbd.tech",
+    siteName: "HabitWallet",
+    title: "HabitWallet",
+    description:
+      "Offline-first habit and personal finance tracking built for Bangladeshi mobile users.",
+    images: [
+      {
+        url: "/logo/android-chrome-512x512.png",
+        width: 512,
+        height: 512,
+        alt: "HabitWallet logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "HabitWallet",
+    description:
+      "Offline-first habit and personal finance tracking built for Bangladeshi mobile users.",
+    images: ["/logo/android-chrome-512x512.png"],
+  },
   icons: {
     icon: [
       { url: "/logo/favicon-32x32.png", sizes: "32x32", type: "image/png" },

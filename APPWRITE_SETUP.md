@@ -14,6 +14,7 @@ Set these in `web/.env.local`.
 NEXT_PUBLIC_APPWRITE_ENDPOINT=https://sgp.cloud.appwrite.io/v1
 NEXT_PUBLIC_APPWRITE_PROJECT_ID=69c3a3f10011a71ec4dd
 NEXT_PUBLIC_APPWRITE_DATABASE_ID=your_database_id
+NEXT_PUBLIC_SITE_URL=https://habitwallet.afsbd.tech
 
 NEXT_PUBLIC_APPWRITE_USERS_COLLECTION_ID=users
 NEXT_PUBLIC_APPWRITE_SUBSCRIPTIONS_COLLECTION_ID=subscriptions
@@ -22,7 +23,50 @@ NEXT_PUBLIC_APPWRITE_HABITS_COLLECTION_ID=habits
 NEXT_PUBLIC_APPWRITE_HABIT_COMPLETIONS_COLLECTION_ID=habit_completions
 NEXT_PUBLIC_APPWRITE_TRANSACTIONS_COLLECTION_ID=transactions
 NEXT_PUBLIC_APPWRITE_BUDGETS_COLLECTION_ID=budgets
+NEXT_PUBLIC_APPWRITE_PLATFORM_CONFIG_COLLECTION_ID=platform_config
 ```
+
+## Appwrite Sites Production Deployment
+
+Target production domain:
+
+- `habitwallet.afsbd.tech`
+
+Target GitHub repository:
+
+- `https://github.com/ariffaisalsheam/Habit-Wallet.git`
+
+### Build settings for Appwrite Sites
+
+- Framework: `Next.js`
+- Install command: `pnpm install --frozen-lockfile`
+- Build command: `pnpm build`
+- Output directory: `.next`
+- Node.js runtime: `20.x` (recommended)
+
+### Required environment variables in Appwrite Site
+
+Copy values from local `.env.local` and set them in Appwrite Site variables:
+
+- `NEXT_PUBLIC_APPWRITE_ENDPOINT`
+- `NEXT_PUBLIC_APPWRITE_PROJECT_ID`
+- `NEXT_PUBLIC_APPWRITE_DATABASE_ID`
+- `NEXT_PUBLIC_SITE_URL=https://habitwallet.afsbd.tech`
+- `NEXT_PUBLIC_APPWRITE_USERS_COLLECTION_ID`
+- `NEXT_PUBLIC_APPWRITE_SUBSCRIPTIONS_COLLECTION_ID`
+- `NEXT_PUBLIC_APPWRITE_ADMIN_LOGS_COLLECTION_ID`
+- `NEXT_PUBLIC_APPWRITE_HABITS_COLLECTION_ID`
+- `NEXT_PUBLIC_APPWRITE_HABIT_COMPLETIONS_COLLECTION_ID`
+- `NEXT_PUBLIC_APPWRITE_TRANSACTIONS_COLLECTION_ID`
+- `NEXT_PUBLIC_APPWRITE_BUDGETS_COLLECTION_ID`
+- `NEXT_PUBLIC_APPWRITE_PLATFORM_CONFIG_COLLECTION_ID`
+
+### Custom domain mapping
+
+1. In Appwrite Console, open your Site settings and add domain `habitwallet.afsbd.tech`.
+2. Add the DNS records Appwrite provides (typically `CNAME` and/or verification records).
+3. Wait for verification and SSL issuance.
+4. Re-deploy once domain is verified.
 
 ## Admin Authorization Model
 

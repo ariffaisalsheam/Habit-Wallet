@@ -5,12 +5,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navItems } from "@/components/navigation/nav-items";
 import { useSyncExternalStore } from "react";
-import { getStoredAppLanguage, subscribeToAppLanguage } from "@/lib/i18n/language";
+import {
+  getStoredAppLanguage,
+  subscribeToAppLanguage,
+  type AppLanguage,
+} from "@/lib/i18n/language";
 import { t } from "@/lib/i18n/translations";
 
 export function DesktopSidebar() {
   const pathname = usePathname();
-  const language = useSyncExternalStore(subscribeToAppLanguage, getStoredAppLanguage, () => "en");
+  const language = useSyncExternalStore<AppLanguage>(
+    subscribeToAppLanguage,
+    getStoredAppLanguage,
+    () => "en"
+  );
 
   return (
     <aside className="hidden min-h-dvh border-r border-border/70 bg-surface/80 p-3 backdrop-blur md:flex md:flex-col">

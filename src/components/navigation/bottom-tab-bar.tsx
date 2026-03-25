@@ -4,13 +4,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { navItems } from "@/components/navigation/nav-items";
-import { getStoredAppLanguage, subscribeToAppLanguage } from "@/lib/i18n/language";
+import {
+  getStoredAppLanguage,
+  subscribeToAppLanguage,
+  type AppLanguage,
+} from "@/lib/i18n/language";
 import { t } from "@/lib/i18n/translations";
 import { useSyncExternalStore } from "react";
 
 export function BottomTabBar() {
   const pathname = usePathname();
-  const language = useSyncExternalStore(subscribeToAppLanguage, getStoredAppLanguage, () => "en");
+  const language = useSyncExternalStore<AppLanguage>(
+    subscribeToAppLanguage,
+    getStoredAppLanguage,
+    () => "en"
+  );
 
   return (
     <nav

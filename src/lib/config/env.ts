@@ -2,6 +2,7 @@ export const appwriteEnv = {
   endpoint: process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ?? "",
   projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ?? "",
   databaseId: process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "",
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "https://habitwallet.afsbd.tech",
   usersCollectionId: process.env.NEXT_PUBLIC_APPWRITE_USERS_COLLECTION_ID ?? "users",
   subscriptionsCollectionId:
     process.env.NEXT_PUBLIC_APPWRITE_SUBSCRIPTIONS_COLLECTION_ID ?? "subscriptions",
@@ -33,4 +34,12 @@ export function hasCollectionsConfig() {
       appwriteEnv.transactionsCollectionId &&
       appwriteEnv.budgetsCollectionId
   );
+}
+
+export function getAppBaseUrl() {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin;
+  }
+
+  return appwriteEnv.siteUrl;
 }

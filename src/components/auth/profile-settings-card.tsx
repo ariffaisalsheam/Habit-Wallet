@@ -18,6 +18,7 @@ import {
   getStoredAppLanguage,
   setStoredAppLanguage,
   subscribeToAppLanguage,
+  type AppLanguage,
 } from "@/lib/i18n/language";
 import { t } from "@/lib/i18n/translations";
 
@@ -58,7 +59,11 @@ export function ProfileSettingsCard() {
       language: cachedProfile?.language ?? "en",
     },
   });
-  const language = useSyncExternalStore(subscribeToAppLanguage, getStoredAppLanguage, () => "en");
+  const language = useSyncExternalStore<AppLanguage>(
+    subscribeToAppLanguage,
+    getStoredAppLanguage,
+    () => "en"
+  );
   const selectedLanguage = watch("language");
 
   useEffect(() => {

@@ -16,6 +16,7 @@ import { getLastSyncAt, LAST_SYNC_EVENT } from "@/lib/storage/sync-queue";
 import {
   getStoredAppLanguage,
   subscribeToAppLanguage,
+  type AppLanguage,
 } from "@/lib/i18n/language";
 import { t, translateTitle } from "@/lib/i18n/translations";
 
@@ -111,7 +112,11 @@ export function MobileAppShell({ children, title = "Dashboard" }: MobileAppShell
   const pendingTotal = pendingTransactions + pendingBudgets + pendingHabits;
   const syncingAny = syncingTransactions || syncingBudgets || syncingHabits;
   const storedLastSyncedAt = useSyncExternalStore(subscribeToLastSync, readLastSyncAt, () => null);
-  const language = useSyncExternalStore(subscribeToAppLanguage, getStoredAppLanguage, () => "en");
+  const language = useSyncExternalStore<AppLanguage>(
+    subscribeToAppLanguage,
+    getStoredAppLanguage,
+    () => "en"
+  );
   const lastSyncedAt = syncingAny ? null : storedLastSyncedAt;
 
   const displayTitle = translateTitle(language, title);
@@ -166,9 +171,16 @@ export function MobileAppShell({ children, title = "Dashboard" }: MobileAppShell
                     href="/profile" 
                     className={`relative flex h-9 w-9 items-center justify-center rounded-xl border-2 border-surface-elevated bg-surface-elevated shadow-sm transition-transform active:scale-95 ${isPro ? 'animate-avatar-pulse border-amber-400/40' : ''}`}
                   >
-                    <span className="h-full w-full overflow-hidden rounded-[0.65rem]">
+                    <span className="relative h-full w-full overflow-hidden rounded-[0.65rem]">
                       {profileForSession?.avatar ? (
-                        <img src={profileForSession.avatar} alt="Profile" className="h-full w-full object-cover" />
+                        <Image
+                          src={profileForSession.avatar}
+                          alt="Profile"
+                          fill
+                          sizes="36px"
+                          unoptimized
+                          className="object-cover"
+                        />
                       ) : (
                         <span className="flex h-full w-full items-center justify-center text-xs font-bold text-primary">
                           {(profileForSession?.name || session.name)[0]}

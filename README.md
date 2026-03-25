@@ -20,6 +20,14 @@ pnpm dev
 
 App will run at `http://localhost:3000`.
 
+## Production Domain
+
+- `https://habitwallet.afsbd.tech`
+
+## GitHub Repository
+
+- `https://github.com/ariffaisalsheam/Habit-Wallet.git`
+
 ## Environment Setup
 
 Copy `.env.example` to `.env.local` and fill required Appwrite values.
@@ -46,3 +54,14 @@ For full Appwrite collection schema and setup steps, see:
 
 - Admin access is label-based (`admin` label on Appwrite user)
 - Stores remain local-first and fall back to local persistence if backend sync fails
+
+## Production Deployment (Appwrite Sites)
+
+1. Connect the GitHub repository to Appwrite Sites.
+2. Use build settings:
+	- Install command: `pnpm install --frozen-lockfile`
+	- Build command: `pnpm build`
+	- Output directory: `.next`
+3. Add all required `NEXT_PUBLIC_*` variables from `.env.local` into Appwrite Site variables.
+4. Add custom domain `habitwallet.afsbd.tech` in site domain settings and complete DNS verification.
+5. Trigger deployment from the `main` branch.

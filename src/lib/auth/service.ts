@@ -1,6 +1,6 @@
 import { ID } from "appwrite";
 import { createAccount } from "@/lib/appwrite/account";
-import { hasAppwriteConfig } from "@/lib/config/env";
+import { getAppBaseUrl, hasAppwriteConfig } from "@/lib/config/env";
 import { clearUserSession, saveUserSession } from "@/lib/storage/session";
 import type { AuthResult } from "@/lib/auth/types";
 
@@ -107,11 +107,8 @@ function missingConfigResult(): AuthResult {
 }
 
 function authRedirectUrl(pathname: string) {
-  if (typeof window !== "undefined") {
-    return `${window.location.origin}${pathname}`;
-  }
-
-  return `http://localhost:3000${pathname}`;
+  const baseUrl = getAppBaseUrl().replace(/\/$/, "");
+  return `${baseUrl}${pathname}`;
 }
 
 export async function registerWithEmail(input: RegisterInput): Promise<AuthResult> {

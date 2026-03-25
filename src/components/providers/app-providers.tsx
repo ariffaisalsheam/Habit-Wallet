@@ -106,10 +106,10 @@ export function AppProviders({ children }: AppProvidersProps) {
       const idleId = window.requestIdleCallback(() => runSync(true));
       void idleId;
     } else {
-      window.setTimeout(() => runSync(true), 100);
+      globalThis.setTimeout(() => runSync(true), 100);
     }
 
-    const interval = window.setInterval(runSync, 5 * 60 * 1000);
+    const interval = globalThis.setInterval(runSync, 5 * 60 * 1000);
 
     const onOnline = () => runSync(true);
     const onVisibility = () => {
@@ -122,7 +122,7 @@ export function AppProviders({ children }: AppProvidersProps) {
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      window.clearInterval(interval);
+      globalThis.clearInterval(interval);
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibility);
     };
