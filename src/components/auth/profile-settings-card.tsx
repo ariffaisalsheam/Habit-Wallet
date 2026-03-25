@@ -5,11 +5,15 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import {
+  getCachedUserProfile,
   getOrCreateUserProfile,
   updateUserProfile,
+  type UserProfile,
   type UpdateUserProfileInput,
 } from "@/lib/profile/service";
-import { User, Phone, Globe, Languages, Save, Loader2, Sparkles } from "lucide-react";
+import { User, Phone, Globe, Languages, Save, Loader2 } from "lucide-react";
+import { SubscriptionBadge } from "@/features/subscription/components/subscription-badge";
+import { getStoredUserSession } from "@/lib/storage/session";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -21,8 +25,16 @@ const profileSchema = z.object({
 type ProfileValues = z.infer<typeof profileSchema>;
 
 export function ProfileSettingsCard() {
-  const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState<{ tier: "free" | "pro"; endDate: string | null } | null>(null);
+  const session = getStoredUserSession();
+  const cachedProfile = session ? getCachedUserProfile(session.user_id) : null;
+
+  const [loading, setLoading] = useState(!cachedProfile);
+  const [profile, setProfile] = useState<UserProfile | null>(cachedProfile);
+  const [summary, setSummary] = useState<{ tier: "free" | "pro"; endDate: string | null } | null>(
+    cachedProfile
+      ? { tier: cachedProfile.subscriptionTier, endDate: cachedProfile.subscriptionEndDate }
+      : null
+  );
   const [message, setMessage] = useState<string | null>(null);
 
   const {
@@ -33,10 +45,10 @@ export function ProfileSettingsCard() {
   } = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      name: "",
-      phone: "",
-      country: "Bangladesh",
-      language: "en",
+      name: cachedProfile?.name ?? "",
+      phone: cachedProfile?.phone ?? "",
+      country: cachedProfile?.country ?? "Bangladesh",
+      language: cachedProfile?.language ?? "en",
     },
   });
 
@@ -55,6 +67,7 @@ export function ProfileSettingsCard() {
           language: profile.language,
         });
 
+        setProfile(profile);
         setSummary({ tier: profile.subscriptionTier, endDate: profile.subscriptionEndDate });
         setMessage(null);
       } catch (error) {
@@ -75,11 +88,18 @@ export function ProfileSettingsCard() {
       phone: values.phone,
       country: values.country,
       language: values.language,
-      avatar: "", // Handled separately via uploadAvatar if needed, but keeping it in the store
+      avatar: profile?.avatar ?? "",
     };
 
     try {
       const profile = await updateUserProfile(payload);
+      setProfile(profile);
+      reset({
+        name: profile.name,
+        phone: profile.phone,
+        country: profile.country,
+        language: profile.language,
+      });
       setSummary({ tier: profile.subscriptionTier, endDate: profile.subscriptionEndDate });
       setMessage("Profile settings updated successfully!");
       setTimeout(() => setMessage(null), 3000);
@@ -107,9 +127,7 @@ export function ProfileSettingsCard() {
         {summary && (
           <div className="mb-6 flex items-center justify-between rounded-2xl bg-primary/5 px-4 py-3 border border-primary/10">
             <span className="text-sm font-medium text-muted-foreground tracking-wide uppercase">Subscription Status</span>
-            <span className={`text-xs font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${summary.tier === 'pro' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-secondary/20 text-secondary'}`}>
-              {summary.tier}
-            </span>
+            <SubscriptionBadge tier={summary.tier} />
           </div>
         )}
 
@@ -144,7 +162,7 @@ export function ProfileSettingsCard() {
                 <Languages size={14} className="text-primary" /> Preferred Language
               </label>
               <select 
-                className="min-h-12 w-full rounded-2xl border border-border bg-surface-elevated px-4 text-sm font-medium transition-all focus:border-primary/50 focus:outline-none focus:ring-4 focus:ring-primary/5 cursor-pointer appearance-none" 
+                className="app-select min-h-12 w-full rounded-2xl border border-border bg-surface-elevated px-4 text-sm font-medium transition-all focus:border-primary/50 focus:outline-none focus:ring-4 focus:ring-primary/5 cursor-pointer" 
                 {...register("language")}
               >
                 <option value="en">English (Global)</option>

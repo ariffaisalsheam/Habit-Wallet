@@ -419,7 +419,6 @@ export function HabitsDashboard() {
           <article className="wellness-card rounded-[2rem] p-5">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-foreground">Reflection</h3>
-              <Sparkles size={16} className="text-secondary" />
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               Write one intention for today or a brief gratitude note.
@@ -493,7 +492,7 @@ export function HabitsDashboard() {
                   <label className="block">
                     <span className="mb-1 block text-xs font-medium text-muted-foreground">Frequency</span>
                     <select
-                      className="min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
+                      className="app-select min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
                       {...register("frequency")}
                     >
                       <option value="daily">Daily</option>
@@ -504,7 +503,7 @@ export function HabitsDashboard() {
                   <label className="block">
                     <span className="mb-1 block text-xs font-medium text-muted-foreground">Time block</span>
                     <select
-                      className="min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
+                      className="app-select min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
                       {...register("timeBlock")}
                     >
                       <option value="morning">Morning</option>

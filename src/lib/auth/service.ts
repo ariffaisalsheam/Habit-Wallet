@@ -71,10 +71,31 @@ function mapError(error: unknown) {
       return "Your session has expired. Please sign in again.";
     }
 
+    if (
+      message.includes("user_session_already_exists") ||
+      message.includes("session is active") ||
+      message.includes("creation of a session is prohibited")
+    ) {
+      return "A previous session was active. Please try signing in again.";
+    }
+
     return error.message;
   }
 
   return "Something went wrong. Please try again.";
+}
+
+function isSessionAlreadyActiveError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("user_session_already_exists") ||
+    message.includes("session is active") ||
+    message.includes("creation of a session is prohibited")
+  );
 }
 
 function missingConfigResult(): AuthResult {
@@ -142,7 +163,18 @@ export async function loginWithEmail(input: LoginInput): Promise<AuthResult> {
   try {
     const account = createAccount();
 
-    await account.createEmailPasswordSession(input.email, input.password);
+    try {
+      await account.createEmailPasswordSession(input.email, input.password);
+    } catch (error) {
+      if (!isSessionAlreadyActiveError(error)) {
+        throw error;
+      }
+
+      // If a session already exists, clear it and retry login once.
+      await account.deleteSession("current");
+      await account.createEmailPasswordSession(input.email, input.password);
+    }
+
     const user = await account.get();
     const mapped = mapUser(user);
 

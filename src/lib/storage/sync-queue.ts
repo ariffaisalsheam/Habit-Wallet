@@ -16,6 +16,8 @@ export type SyncQueueItem = {
   dedupeKey?: string;
 };
 
+export const LAST_SYNC_EVENT = "hft_last_sync_changed";
+
 const MAX_QUEUE_ITEMS = 500;
 
 function canUseStorage() {
@@ -141,6 +143,7 @@ export function setLastSyncNow() {
   }
 
   window.localStorage.setItem(STORAGE_KEYS.lastSync, new Date().toISOString());
+  window.dispatchEvent(new Event(LAST_SYNC_EVENT));
 }
 
 export function getLastSyncAt() {

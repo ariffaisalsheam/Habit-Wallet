@@ -18,6 +18,7 @@ import {
   removeSyncOperation,
   setLastSyncNow,
 } from "@/lib/storage/sync-queue";
+import { isCloudSyncEnabledForCurrentUser, isCloudSyncLockedError } from "@/lib/subscription/access";
 import type { FinanceTransaction, TransactionInput } from "@/features/finance/types";
 
 type TransactionsState = {
@@ -55,6 +56,11 @@ export const useTransactionsStore = create<TransactionsState>()(
       pendingQueueCount: 0,
       errorMessage: null,
       loadFromBackend: async () => {
+        if (!isCloudSyncEnabledForCurrentUser()) {
+          set({ syncing: false, pendingQueueCount: getSyncQueueCount("transactions"), errorMessage: null });
+          return;
+        }
+
         set({ syncing: true, errorMessage: null });
 
         try {
@@ -74,6 +80,11 @@ export const useTransactionsStore = create<TransactionsState>()(
         }
       },
       syncPending: async () => {
+        if (!isCloudSyncEnabledForCurrentUser()) {
+          set({ syncing: false, pendingQueueCount: getSyncQueueCount("transactions"), errorMessage: null });
+          return;
+        }
+
         const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
         if (isOffline) {
           set({ pendingQueueCount: getSyncQueueCount("transactions") });
@@ -152,6 +163,15 @@ export const useTransactionsStore = create<TransactionsState>()(
             errorMessage: null,
           }));
         } catch (error) {
+          if (isCloudSyncLockedError(error)) {
+            set({
+              syncing: false,
+              pendingQueueCount: getSyncQueueCount("transactions"),
+              errorMessage: null,
+            });
+            return;
+          }
+
           enqueueSyncOperation({
             collection: "transactions",
             operation: "create",
@@ -207,6 +227,15 @@ export const useTransactionsStore = create<TransactionsState>()(
             errorMessage: null,
           }));
         } catch (error) {
+          if (isCloudSyncLockedError(error)) {
+            set({
+              syncing: false,
+              pendingQueueCount: getSyncQueueCount("transactions"),
+              errorMessage: null,
+            });
+            return;
+          }
+
           enqueueSyncOperation({
             collection: "transactions",
             operation: targetWasSynced ? "update" : "create",
@@ -269,6 +298,15 @@ export const useTransactionsStore = create<TransactionsState>()(
             errorMessage: null,
           });
         } catch (error) {
+          if (isCloudSyncLockedError(error)) {
+            set({
+              syncing: false,
+              pendingQueueCount: getSyncQueueCount("transactions"),
+              errorMessage: null,
+            });
+            return;
+          }
+
           enqueueSyncOperation({
             collection: "transactions",
             operation: "delete",

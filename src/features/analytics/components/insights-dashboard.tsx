@@ -5,17 +5,20 @@ import {
   ArrowUpRight,
   CalendarRange,
   Download,
+  Lock,
   PiggyBank,
   Target,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { HabitCompletion } from "@/features/habits/types";
 import { useHabitsStore } from "@/features/habits/store/use-habits-store";
 import { useTransactionsStore } from "@/features/finance/store/use-transactions-store";
 import { formatBDT } from "@/features/finance/utils";
 import { exportInsightsPdf } from "@/features/analytics/utils";
+import { getOrCreateUserProfile } from "@/lib/profile/service";
+import { PRO_INSIGHT_WINDOWS } from "@/features/subscription/plans";
 
 type InsightWindow = 7 | 30 | 90;
 
@@ -140,9 +143,37 @@ function formatDelta(current: number, previous: number, suffix = "%") {
 
 export function InsightsDashboard() {
   const [windowDays, setWindowDays] = useState<InsightWindow>(7);
+  const [subscriptionTier, setSubscriptionTier] = useState<"free" | "pro">("free");
+  const [upgradeNotice, setUpgradeNotice] = useState<string | null>(null);
   const habits = useHabitsStore((state) => state.habits);
   const completions = useHabitsStore((state) => state.completions);
   const transactions = useTransactionsStore((state) => state.transactions);
+
+  useEffect(() => {
+    let mounted = true;
+
+    void getOrCreateUserProfile()
+      .then((profile) => {
+        if (!mounted) return;
+        setSubscriptionTier(profile.subscriptionTier);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setSubscriptionTier("free");
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const isPro = subscriptionTier === "pro";
+
+  useEffect(() => {
+    if (!upgradeNotice) return;
+    const timer = window.setTimeout(() => setUpgradeNotice(null), 2600);
+    return () => window.clearTimeout(timer);
+  }, [upgradeNotice]);
 
   const windowBounds = useMemo(() => getWindowBounds(windowDays), [windowDays]);
 
@@ -316,7 +347,12 @@ export function InsightsDashboard() {
 
   const topExpense = expenseByCategory[0];
 
-  function onExportInsightsPdf() {
+  async function onExportInsightsPdf() {
+    if (!isPro) {
+      setUpgradeNotice("PDF insights export is available on the Professional plan.");
+      return;
+    }
+
     exportInsightsPdf({
       windowDays,
       completionRate,
@@ -338,25 +374,31 @@ export function InsightsDashboard() {
   return (
     <section className="space-y-4 pb-8 animate-soft-rise">
       <article className="wellness-card rounded-[2rem] p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Insight Pulse</p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">Your momentum snapshot</h2>
+            <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Your momentum snapshot</h2>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <div className="inline-flex rounded-full border border-border/80 bg-background/80 p-1">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+            <div className="grid w-full grid-cols-3 gap-1 rounded-2xl border border-border/80 bg-background/80 p-1 sm:inline-flex sm:w-auto sm:grid-cols-none sm:rounded-full">
               {insightWindows.map((windowOption) => (
                 <button
                   key={windowOption}
                   type="button"
-                  onClick={() => setWindowDays(windowOption)}
-                  className={`inline-flex min-h-8 items-center gap-1 rounded-full px-3 text-xs font-semibold transition ${
+                  onClick={() => {
+                    if (PRO_INSIGHT_WINDOWS.includes(windowOption) && !isPro) {
+                      setUpgradeNotice("90-day insights are available on the Professional plan.");
+                      return;
+                    }
+                    setWindowDays(windowOption);
+                  }}
+                  className={`inline-flex min-h-8 items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-semibold transition sm:rounded-full sm:px-3 sm:text-xs ${
                     windowDays === windowOption
                       ? "bg-primary/20 text-foreground"
                       : "text-muted-foreground hover:bg-surface-elevated hover:text-foreground"
                   }`}
                 >
-                  <CalendarRange size={13} /> {windowOption}D
+                  {PRO_INSIGHT_WINDOWS.includes(windowOption) && !isPro ? <Lock size={12} /> : <CalendarRange size={13} />} {windowOption}D
                 </button>
               ))}
             </div>
@@ -364,12 +406,18 @@ export function InsightsDashboard() {
             <button
               type="button"
               onClick={onExportInsightsPdf}
-              className="inline-flex min-h-9 items-center gap-1 rounded-full border border-border/80 bg-background/90 px-3 text-xs font-semibold text-foreground hover:bg-surface-elevated"
+              className="inline-flex min-h-10 w-full items-center justify-center gap-1 rounded-xl border border-border/80 bg-background/90 px-3 text-xs font-semibold text-foreground hover:bg-surface-elevated sm:min-h-9 sm:w-auto sm:rounded-full"
             >
-              <Download size={13} /> Export PDF
+              {isPro ? <Download size={13} /> : <Lock size={12} />}
+              Export PDF
             </button>
           </div>
         </div>
+        {upgradeNotice ? (
+          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            {upgradeNotice}
+          </p>
+        ) : null}
 
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-2xl bg-background/90 p-3">

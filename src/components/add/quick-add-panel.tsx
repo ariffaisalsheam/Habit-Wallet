@@ -156,7 +156,7 @@ export function QuickAddPanel() {
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-muted-foreground">Type</span>
                 <select
-                  className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                  className="app-select min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
                   {...registerTransaction("type")}
                 >
                   <option value="expense">Expense</option>
@@ -167,7 +167,7 @@ export function QuickAddPanel() {
                 <span className="mb-1 block text-xs font-medium text-muted-foreground">Date</span>
                 <input
                   type="date"
-                  className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                  className="app-date min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
                   {...registerTransaction("date")}
                 />
               </label>
@@ -260,7 +260,7 @@ export function QuickAddPanel() {
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-muted-foreground">Frequency</span>
                 <select
-                  className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                  className="app-select min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
                   {...registerHabit("frequency")}
                 >
                   <option value="daily">Daily</option>
@@ -271,7 +271,7 @@ export function QuickAddPanel() {
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-muted-foreground">Time block</span>
                 <select
-                  className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                  className="app-select min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
                   {...registerHabit("timeBlock")}
                 >
                   <option value="morning">Morning</option>

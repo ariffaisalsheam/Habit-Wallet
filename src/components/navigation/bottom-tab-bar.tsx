@@ -11,33 +11,48 @@ export function BottomTabBar() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/70 bg-surface/92 px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 backdrop-blur md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 md:hidden"
     >
       <ul
-        className="mx-auto grid w-full max-w-lg gap-2"
+        className="mx-auto grid w-full max-w-lg grid-cols-5 items-end gap-1 rounded-[1.6rem] border border-border/70 bg-surface/92 px-2 py-2 shadow-[var(--card-shadow)] backdrop-blur"
         style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
       >
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
+          const isAdd = item.href === "/add";
 
           return (
             <li key={item.href}>
               <Link
                 href={item.href}
                 className={clsx(
-                  "group flex min-h-12 flex-col items-center justify-center rounded-full px-1 text-[11px] font-semibold tracking-[0.01em] transition-all duration-300",
-                  isActive
-                    ? "soft-glow-active bg-primary/20 text-foreground"
-                    : "text-muted-foreground hover:bg-surface-elevated hover:text-foreground"
+                  "group flex min-h-12 flex-col items-center justify-center transition-all duration-300",
+                  isAdd
+                    ? clsx(
+                        "relative -mt-7 min-h-14 rounded-full",
+                        isActive ? "text-white" : "text-white/95"
+                      )
+                    : clsx(
+                        "rounded-full px-1 text-[11px] font-semibold tracking-[0.01em]",
+                        isActive
+                          ? "soft-glow-active bg-primary/20 text-foreground"
+                          : "text-muted-foreground hover:bg-surface-elevated hover:text-foreground"
+                      )
                 )}
               >
                 <Icon
-                  size={18}
-                  strokeWidth={isActive ? 2.25 : 2}
-                  className={clsx("transition-transform duration-300", isActive ? "scale-105" : "scale-100")}
+                  size={isAdd ? 20 : 18}
+                  strokeWidth={isAdd ? 2.4 : isActive ? 2.25 : 2}
+                  className={clsx(
+                    "transition-transform duration-300",
+                    isAdd ? "drop-shadow-sm" : isActive ? "scale-105" : "scale-100"
+                  )}
                 />
-                <span className="mt-0.5">{item.label}</span>
+                {isAdd ? (
+                  <span className="absolute inset-0 -z-10 rounded-full bg-gradient-to-br from-primary to-accent shadow-[0_14px_24px_-12px_rgba(34,90,64,0.8)]" />
+                ) : null}
+                <span className={clsx("mt-0.5", isAdd ? "text-[10px] font-bold tracking-wide" : "")}>{item.label}</span>
               </Link>
             </li>
           );

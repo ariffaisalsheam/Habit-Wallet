@@ -22,6 +22,7 @@ import {
   removeSyncOperation,
   setLastSyncNow,
 } from "@/lib/storage/sync-queue";
+import { isCloudSyncEnabledForCurrentUser, isCloudSyncLockedError } from "@/lib/subscription/access";
 import type { HabitCompletion, HabitInput, HabitItem } from "@/features/habits/types";
 
 type HabitsState = {
@@ -52,6 +53,11 @@ export const useHabitsStore = create<HabitsState>()(
       pendingQueueCount: 0,
       errorMessage: null,
       loadFromBackend: async () => {
+        if (!isCloudSyncEnabledForCurrentUser()) {
+          set({ syncing: false, pendingQueueCount: getHabitsPendingCount(), errorMessage: null });
+          return;
+        }
+
         set({ syncing: true, errorMessage: null });
 
         try {
@@ -72,6 +78,11 @@ export const useHabitsStore = create<HabitsState>()(
         }
       },
       syncPending: async () => {
+        if (!isCloudSyncEnabledForCurrentUser()) {
+          set({ syncing: false, pendingQueueCount: getHabitsPendingCount(), errorMessage: null });
+          return;
+        }
+
         const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
         if (isOffline) {
           set({ pendingQueueCount: getHabitsPendingCount() });
@@ -177,6 +188,15 @@ export const useHabitsStore = create<HabitsState>()(
             pendingQueueCount: getHabitsPendingCount(),
           }));
         } catch (error) {
+          if (isCloudSyncLockedError(error)) {
+            set({
+              syncing: false,
+              pendingQueueCount: getHabitsPendingCount(),
+              errorMessage: null,
+            });
+            return;
+          }
+
           enqueueSyncOperation({
             collection: "habits",
             operation: "create",
@@ -227,6 +247,15 @@ export const useHabitsStore = create<HabitsState>()(
             errorMessage: null,
           }));
         } catch (error) {
+          if (isCloudSyncLockedError(error)) {
+            set({
+              syncing: false,
+              pendingQueueCount: getHabitsPendingCount(),
+              errorMessage: null,
+            });
+            return;
+          }
+
           enqueueSyncOperation({
             collection: "habits",
             operation: hasQueuedCreate ? "create" : "update",
@@ -282,6 +311,15 @@ export const useHabitsStore = create<HabitsState>()(
             errorMessage: null,
           });
         } catch (error) {
+          if (isCloudSyncLockedError(error)) {
+            set({
+              syncing: false,
+              pendingQueueCount: getHabitsPendingCount(),
+              errorMessage: null,
+            });
+            return;
+          }
+
           enqueueSyncOperation({
             collection: "habits",
             operation: "delete",
@@ -384,6 +422,14 @@ export const useHabitsStore = create<HabitsState>()(
                     : "Synced locally only.",
               };
             }
+
+              if (isCloudSyncLockedError(error)) {
+                return {
+                  syncing: false,
+                  pendingQueueCount: getHabitsPendingCount(),
+                  errorMessage: null,
+                };
+              }
 
             enqueueSyncOperation({
               collection: "habit-completions",

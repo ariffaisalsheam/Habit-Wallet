@@ -14,6 +14,7 @@ import {
   removeSyncOperation,
   setLastSyncNow,
 } from "@/lib/storage/sync-queue";
+import { isCloudSyncEnabledForCurrentUser, isCloudSyncLockedError } from "@/lib/subscription/access";
 import type { MonthlyBudget, MonthlyBudgetInput } from "@/features/finance/types";
 
 type BudgetsState = {
@@ -36,6 +37,11 @@ export const useBudgetsStore = create<BudgetsState>()(
       pendingQueueCount: 0,
       errorMessage: null,
       loadFromBackend: async () => {
+        if (!isCloudSyncEnabledForCurrentUser()) {
+          set({ syncing: false, pendingQueueCount: getSyncQueueCount("budgets"), errorMessage: null });
+          return;
+        }
+
         set({ syncing: true, errorMessage: null });
 
         try {
@@ -55,6 +61,11 @@ export const useBudgetsStore = create<BudgetsState>()(
         }
       },
       syncPending: async () => {
+        if (!isCloudSyncEnabledForCurrentUser()) {
+          set({ syncing: false, pendingQueueCount: getSyncQueueCount("budgets"), errorMessage: null });
+          return;
+        }
+
         const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
         if (isOffline) {
           set({ pendingQueueCount: getSyncQueueCount("budgets") });
@@ -166,6 +177,15 @@ export const useBudgetsStore = create<BudgetsState>()(
             errorMessage: null,
           }));
         } catch (error) {
+          if (isCloudSyncLockedError(error)) {
+            set({
+              syncing: false,
+              pendingQueueCount: getSyncQueueCount("budgets"),
+              errorMessage: null,
+            });
+            return;
+          }
+
           enqueueSyncOperation({
             collection: "budgets",
             operation: "upsert",
@@ -217,6 +237,15 @@ export const useBudgetsStore = create<BudgetsState>()(
             errorMessage: null,
           });
         } catch (error) {
+          if (isCloudSyncLockedError(error)) {
+            set({
+              syncing: false,
+              pendingQueueCount: getSyncQueueCount("budgets"),
+              errorMessage: null,
+            });
+            return;
+          }
+
           enqueueSyncOperation({
             collection: "budgets",
             operation: "delete",

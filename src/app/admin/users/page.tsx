@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  Crown,
+  Ban,
   Loader2,
   RefreshCw,
   Search,
@@ -13,23 +13,20 @@ import {
 import { listTopProfiles } from "@/lib/profile/service";
 import { useSubscriptionStore } from "@/features/subscription/store/use-subscription-store";
 import type { UserProfile } from "@/lib/profile/service";
+import { SubscriptionBadge } from "@/features/subscription/components/subscription-badge";
+import { cancelUserPlanByAdmin } from "@/lib/subscription/service";
 
-function tierBadge(tier: "free" | "pro") {
-  if (tier === "pro")
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
-        <Crown size={9} />
-        Pro
-      </span>
-    );
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-border/60 px-2 py-0.5 text-[9px] font-bold uppercase text-muted-foreground">
-      Free
-    </span>
-  );
-}
-
-function UserCard({ profile, subscriptionCount }: { profile: UserProfile; subscriptionCount: number }) {
+function UserCard({
+  profile,
+  subscriptionCount,
+  onCancelPlan,
+  cancelling,
+}: {
+  profile: UserProfile;
+  subscriptionCount: number;
+  onCancelPlan: (profile: UserProfile) => void;
+  cancelling: boolean;
+}) {
   const initials = profile.name
     ? profile.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : profile.email.slice(0, 2).toUpperCase();
@@ -42,7 +39,7 @@ function UserCard({ profile, subscriptionCount }: { profile: UserProfile; subscr
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <p className="text-sm font-semibold text-foreground">{profile.name || "—"}</p>
-          {tierBadge(profile.subscriptionTier)}
+          <SubscriptionBadge tier={profile.subscriptionTier} />
         </div>
         <p className="text-xs text-muted-foreground">{profile.email}</p>
         {profile.phone && <p className="text-xs text-muted-foreground">{profile.phone}</p>}
@@ -51,6 +48,17 @@ function UserCard({ profile, subscriptionCount }: { profile: UserProfile; subscr
         <p className="text-xs text-muted-foreground">{subscriptionCount} sub{subscriptionCount !== 1 ? "s" : ""}</p>
         {profile.subscriptionEndDate && (
           <p className="text-[10px] text-primary">until {new Date(profile.subscriptionEndDate).toLocaleDateString("en-GB")}</p>
+        )}
+        {profile.subscriptionTier === "pro" && (
+          <button
+            type="button"
+            onClick={() => onCancelPlan(profile)}
+            disabled={cancelling}
+            className="mt-1 inline-flex min-h-7 items-center gap-1 rounded-md border border-red-300 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-800/50 dark:bg-red-950/30 dark:text-red-400"
+          >
+            {cancelling ? <Loader2 size={10} className="animate-spin" /> : <Ban size={10} />}
+            Cancel plan
+          </button>
         )}
       </div>
     </div>
@@ -61,8 +69,10 @@ export default function AdminUsersPage() {
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [tierFilter, setTierFilter] = useState<"all" | "free" | "pro">("all");
+  const [cancellingUserId, setCancellingUserId] = useState<string | null>(null);
   const requests = useSubscriptionStore((state) => state.requests);
   const loadAdminRequests = useSubscriptionStore((state) => state.loadAdminRequests);
 
@@ -99,6 +109,38 @@ export default function AdminUsersPage() {
     void fetchProfiles();
     void loadAdminRequests();
   }, [loadAdminRequests]);
+
+  useEffect(() => {
+    if (!message) return;
+    const timer = window.setTimeout(() => setMessage(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [message]);
+
+  async function handleCancelPlan(profile: UserProfile) {
+    setCancellingUserId(profile.userId);
+    setError(null);
+
+    try {
+      await cancelUserPlanByAdmin(profile.userId, `Plan cancelled by admin for ${profile.email}.`);
+      setProfiles((current) =>
+        current.map((item) =>
+          item.userId === profile.userId
+            ? {
+                ...item,
+                subscriptionTier: "free",
+                subscriptionEndDate: null,
+              }
+            : item
+        )
+      );
+      setMessage(`Cancelled Professional plan for ${profile.name || profile.email}.`);
+      void fetchProfiles();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to cancel this plan.");
+    } finally {
+      setCancellingUserId(null);
+    }
+  }
 
   const filtered = profiles.filter((p) => {
     const matchesTier = tierFilter === "all" || p.subscriptionTier === tierFilter;
@@ -190,6 +232,11 @@ export default function AdminUsersPage() {
           <button className="mt-1 font-semibold underline" onClick={() => void fetchProfiles()}>Retry</button>
         </div>
       )}
+      {message && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-400">
+          {message}
+        </div>
+      )}
 
       {/* User List */}
       <div className="space-y-2">
@@ -210,6 +257,8 @@ export default function AdminUsersPage() {
               key={profile.userId}
               profile={profile}
               subscriptionCount={subscriptionCountForUser(profile.userId)}
+              onCancelPlan={handleCancelPlan}
+              cancelling={cancellingUserId === profile.userId}
             />
           ))
         )}

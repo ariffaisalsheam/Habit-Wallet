@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { useSubscriptionStore } from "@/features/subscription/store/use-subscription-store";
 import { getStoredUserSession } from "@/lib/storage/session";
+import { listTopProfiles } from "@/lib/profile/service";
+import { SUBSCRIPTION_PLANS } from "@/features/subscription/plans";
 
 function StatCard({
   label,
@@ -112,6 +114,7 @@ export default function AdminPage() {
   const requests = useSubscriptionStore((state) => state.requests);
   const loadAdminRequests = useSubscriptionStore((state) => state.loadAdminRequests);
   const isLoading = useSubscriptionStore((state) => state.isLoading);
+  const [activeProUserIds, setActiveProUserIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!session) {
@@ -127,14 +130,54 @@ export default function AdminPage() {
     void loadAdminRequests();
   }, [loadAdminRequests]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadProfiles() {
+      try {
+        const result = await listTopProfiles(500);
+        if (!mounted) return;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const activeIds = new Set(
+          result.documents
+            .map((doc) => doc as Record<string, unknown>)
+            .filter((d) => {
+              const tier = d.subscriptionTier as string | undefined;
+              if (tier !== "pro") return false;
+
+              const rawEnd = d.subscriptionEndDate;
+              if (typeof rawEnd !== "string" || !rawEnd) return true;
+
+              const end = new Date(rawEnd);
+              end.setHours(0, 0, 0, 0);
+              return end >= today;
+            })
+            .map((d) => String(d.userId ?? ""))
+            .filter(Boolean)
+        );
+
+        setActiveProUserIds(activeIds);
+      } catch {
+        if (!mounted) return;
+        setActiveProUserIds(new Set());
+      }
+    }
+
+    void loadProfiles();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   if (!session?.is_admin) return null;
 
   const pendingCount = requests.filter((r) => r.status === "pending").length;
-  const approvedCount = requests.filter((r) => r.status === "approved").length;
+  const approvedCount = activeProUserIds.size;
   const rejectedCount = requests.filter((r) => r.status === "rejected").length;
-  const totalRevenue = requests
-    .filter((r) => r.status === "approved")
-    .reduce((sum, r) => sum + r.amount, 0);
+  const totalRevenue = approvedCount * SUBSCRIPTION_PLANS.pro.monthlyPrice;
 
   const recentActivity = [...requests]
     .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())

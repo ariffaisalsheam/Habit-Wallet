@@ -2,6 +2,7 @@ import { ID } from "appwrite";
 import { createDatabases, q } from "@/lib/appwrite/databases";
 import { getCurrentAuthUser } from "@/lib/auth/service";
 import { appwriteEnv, hasCollectionsConfig, hasDatabaseConfig } from "@/lib/config/env";
+import { assertCloudSyncAccess } from "@/lib/subscription/access";
 import type { HabitCompletion, HabitInput, HabitItem } from "@/features/habits/types";
 
 type HabitDocument = {
@@ -70,6 +71,7 @@ function mapCompletion(document: HabitCompletionDocument): HabitCompletion {
 
 export async function loadHabitsBundle() {
   ensureDbReady();
+  assertCloudSyncAccess();
   const user = await requireAuthUser();
   const databases = createDatabases();
 
@@ -96,6 +98,7 @@ export async function loadHabitsBundle() {
 
 export async function createHabitRemote(input: HabitInput) {
   ensureDbReady();
+  assertCloudSyncAccess();
   const user = await requireAuthUser();
   const now = new Date().toISOString();
 
@@ -122,6 +125,7 @@ export async function createHabitRemote(input: HabitInput) {
 
 export async function updateHabitRemote(id: string, input: HabitInput) {
   ensureDbReady();
+  assertCloudSyncAccess();
 
   const document = (await createDatabases().updateDocument(
     appwriteEnv.databaseId,
@@ -143,6 +147,7 @@ export async function updateHabitRemote(id: string, input: HabitInput) {
 
 export async function removeHabitRemote(id: string) {
   ensureDbReady();
+  assertCloudSyncAccess();
   const databases = createDatabases();
 
   const completions = await databases.listDocuments(
@@ -165,6 +170,7 @@ export async function removeHabitRemote(id: string) {
 
 export async function toggleHabitCompletionRemote(habitId: string, date: string) {
   ensureDbReady();
+  assertCloudSyncAccess();
   const user = await requireAuthUser();
   const databases = createDatabases();
 
@@ -202,6 +208,7 @@ export async function toggleHabitCompletionRemote(habitId: string, date: string)
 
 export async function setHabitCompletionRemote(habitId: string, date: string, completed: boolean) {
   ensureDbReady();
+  assertCloudSyncAccess();
   const user = await requireAuthUser();
   const databases = createDatabases();
 

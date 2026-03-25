@@ -190,3 +190,27 @@ export async function reviewSubscriptionRequest(
 
   return mapRequest(updated);
 }
+
+export async function cancelUserPlanByAdmin(userId: string, adminNote = "") {
+  ensureDbReady();
+  const admin = await requireAdmin();
+
+  const reviewedAt = new Date().toISOString();
+  const databases = createDatabases();
+
+  await upsertSubscriptionTier(userId, "free", null);
+
+  await databases.createDocument(appwriteEnv.databaseId, appwriteEnv.adminLogsCollectionId, ID.unique(), {
+    adminId: admin.id,
+    action: "subscription_cancelled",
+    resourceType: "user_profile",
+    resourceId: userId,
+    notes: adminNote.trim() || "Plan manually cancelled from admin users panel.",
+    createdAt: reviewedAt,
+  });
+
+  return {
+    userId,
+    cancelledAt: reviewedAt,
+  };
+}

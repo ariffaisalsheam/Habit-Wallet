@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, TrendingUp, Users, Wallet } from "lucide-react";
 import { useSubscriptionStore } from "@/features/subscription/store/use-subscription-store";
+import { listTopProfiles } from "@/lib/profile/service";
+import { SUBSCRIPTION_PLANS } from "@/features/subscription/plans";
 
 const MONTHS_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -42,16 +44,61 @@ export default function AdminAnalyticsPage() {
   const requests = useSubscriptionStore((state) => state.requests);
   const loadAdminRequests = useSubscriptionStore((state) => state.loadAdminRequests);
   const isLoading = useSubscriptionStore((state) => state.isLoading);
+  const [activeProUserIds, setActiveProUserIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     void loadAdminRequests();
   }, [loadAdminRequests]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadProfiles() {
+      try {
+        const result = await listTopProfiles(500);
+        if (!mounted) return;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const activeIds = new Set(
+          result.documents
+            .map((doc) => doc as Record<string, unknown>)
+            .filter((d) => {
+              const tier = d.subscriptionTier as string | undefined;
+              if (tier !== "pro") return false;
+
+              const rawEnd = d.subscriptionEndDate;
+              if (typeof rawEnd !== "string" || !rawEnd) return true;
+
+              const end = new Date(rawEnd);
+              end.setHours(0, 0, 0, 0);
+              return end >= today;
+            })
+            .map((d) => String(d.userId ?? ""))
+            .filter(Boolean)
+        );
+
+        setActiveProUserIds(activeIds);
+      } catch {
+        if (!mounted) return;
+        setActiveProUserIds(new Set());
+      }
+    }
+
+    void loadProfiles();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const stats = useMemo(() => {
-    const approved = requests.filter((r) => r.status === "approved");
+    const approved = requests.filter(
+      (r) => r.status === "approved" && activeProUserIds.has(r.userId)
+    );
     const rejected = requests.filter((r) => r.status === "rejected");
     const pending = requests.filter((r) => r.status === "pending");
-    const totalRevenue = approved.reduce((s, r) => s + r.amount, 0);
+    const totalRevenue = activeProUserIds.size * SUBSCRIPTION_PLANS.pro.monthlyPrice;
     const avgRevenue = approved.length ? totalRevenue / approved.length : 0;
     const approvalRate = requests.length
       ? Math.round((approved.length / requests.length) * 100)
@@ -86,7 +133,7 @@ export default function AdminAnalyticsPage() {
     return {
       totalRevenue,
       avgRevenue,
-      approvedCount: approved.length,
+      approvedCount: activeProUserIds.size,
       rejectedCount: rejected.length,
       pendingCount: pending.length,
       totalRequests: requests.length,
@@ -96,7 +143,7 @@ export default function AdminAnalyticsPage() {
       peakMonth,
       durationBreakdown,
     };
-  }, [requests]);
+  }, [activeProUserIds, requests]);
 
   const last12Labels = Array.from({ length: 12 }, (_, i) => {
     const now = new Date();

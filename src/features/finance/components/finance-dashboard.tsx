@@ -1,7 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Download, Pencil, RefreshCw, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Crown, Download, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -9,6 +10,7 @@ import { useBudgetsStore } from "@/features/finance/store/use-budgets-store";
 import { useTransactionsStore } from "@/features/finance/store/use-transactions-store";
 import type { FinanceTransaction, TransactionInput } from "@/features/finance/types";
 import { exportTransactionsPdf, formatBDT, formatDate, getCurrentMonthTotals } from "@/features/finance/utils";
+import { getOrCreateUserProfile } from "@/lib/profile/service";
 
 const transactionSchema = z.object({
   type: z.enum(["income", "expense"]),
@@ -40,6 +42,8 @@ export function FinanceDashboard() {
   const currentDate = new Date().toISOString().slice(0, 10);
   const currentMonth = currentDate.slice(0, 7);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [subscriptionTier, setSubscriptionTier] = useState<"free" | "pro">("free");
+  const [upgradeNotice, setUpgradeNotice] = useState<string | null>(null);
   const transactions = useTransactionsStore((state) => state.transactions);
   const addTransaction = useTransactionsStore((state) => state.addTransaction);
   const updateTransaction = useTransactionsStore((state) => state.updateTransaction);
@@ -91,6 +95,7 @@ export function FinanceDashboard() {
 
   const totals = useMemo(() => getCurrentMonthTotals(transactions), [transactions]);
   const balance = totals.income - totals.expense;
+  const isPro = subscriptionTier === "pro";
   const pendingSyncCount = transactionsPendingQueueCount + budgetsPendingQueueCount;
   const isSyncingAny = transactionsSyncing || budgetsSyncing;
 
@@ -98,6 +103,24 @@ export function FinanceDashboard() {
     void loadTransactions();
     void loadBudgets();
   }, [loadBudgets, loadTransactions]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    void getOrCreateUserProfile()
+      .then((profile) => {
+        if (!mounted) return;
+        setSubscriptionTier(profile.subscriptionTier);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setSubscriptionTier("free");
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!transactionsError) return;
@@ -110,6 +133,12 @@ export function FinanceDashboard() {
     const timer = window.setTimeout(() => clearBudgetsError(), 4500);
     return () => window.clearTimeout(timer);
   }, [budgetsError, clearBudgetsError]);
+
+  useEffect(() => {
+    if (!upgradeNotice) return;
+    const timer = window.setTimeout(() => setUpgradeNotice(null), 2600);
+    return () => window.clearTimeout(timer);
+  }, [upgradeNotice]);
 
   const monthBudgets = budgets.filter((budget) => budget.monthYear === currentMonth);
 
@@ -233,7 +262,7 @@ export function FinanceDashboard() {
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-muted-foreground">Type</span>
               <select
-                className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                className="app-select min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
                 {...register("type")}
               >
                 <option value="expense">Expense</option>
@@ -244,7 +273,7 @@ export function FinanceDashboard() {
               <span className="mb-1 block text-xs font-medium text-muted-foreground">Date</span>
               <input
                 type="date"
-                className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                className="app-date min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
                 {...register("date")}
               />
             </label>
@@ -400,13 +429,33 @@ export function FinanceDashboard() {
           <h2 className="text-lg font-semibold text-foreground">Recent transactions</h2>
           <button
             type="button"
-            onClick={() => exportTransactionsPdf(transactions)}
+            onClick={async () => {
+              if (!isPro) {
+                setUpgradeNotice("Finance PDF export is available on the Professional plan.");
+                return;
+              }
+              exportTransactionsPdf(transactions);
+            }}
             disabled={transactions.length === 0}
             className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-border px-3 text-xs font-semibold text-foreground disabled:opacity-50"
           >
             <Download size={15} /> PDF
           </button>
         </div>
+        {!isPro ? (
+          <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Crown size={11} className="text-amber-500" />
+            Professional unlocks PDF export.
+            <Link href="/subscription" className="font-semibold text-primary hover:underline">
+              Upgrade
+            </Link>
+          </p>
+        ) : null}
+        {upgradeNotice ? (
+          <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            {upgradeNotice}
+          </p>
+        ) : null}
 
         <ul className="mt-3 space-y-2">
           {transactions.length === 0 ? (

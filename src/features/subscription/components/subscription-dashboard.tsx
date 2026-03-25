@@ -16,12 +16,14 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useSubscriptionStore } from "@/features/subscription/store/use-subscription-store";
-import { getStoredUserSession } from "@/lib/storage/session";
+import { SUBSCRIPTION_PLANS } from "@/features/subscription/plans";
+import { getStoredUserSession, USER_SESSION_EVENT } from "@/lib/storage/session";
 import { useConfigStore } from "@/lib/config/use-config-store";
+import { getOrCreateUserProfile } from "@/lib/profile/service";
 
 const subscriptionSchema = z.object({
   months: z.coerce.number().min(1).max(12),
@@ -31,25 +33,6 @@ const subscriptionSchema = z.object({
 });
 
 type SubscriptionValues = z.input<typeof subscriptionSchema>;
-
-const FREE_FEATURES = [
-  "Unlimited habit tracking",
-  "Unlimited finance tracking",
-  "Basic analytics",
-  "Local storage (offline-first)",
-  "Light & dark theme",
-];
-
-const PRO_FEATURES = [
-  "Everything in Free",
-  "Cloud sync across devices",
-  "Export to PDF & CSV",
-  "Advanced analytics & insights",
-  "Unlimited custom categories",
-  "Priority support",
-  "Habit reminder notifications",
-  "Budget forecasting",
-];
 
 // BKASH_STEPS moved inside component hook
 
@@ -140,7 +123,7 @@ function PlanCard({ name, price, period, features, isActive, isPro, tag, onSelec
           }`}
         >
           {isPro ? <Zap size={14} /> : null}
-          {isPro ? "Upgrade to Pro" : "Current Plan"}
+          {isPro ? "Upgrade to Professional" : "Current Plan"}
           {isPro && <ChevronRight size={14} />}
         </button>
       )}
@@ -148,8 +131,18 @@ function PlanCard({ name, price, period, features, isActive, isPro, tag, onSelec
   );
 }
 
+function subscribeToSession(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener(USER_SESSION_EVENT, onStoreChange);
+  window.addEventListener("storage", onStoreChange);
+  return () => {
+    window.removeEventListener(USER_SESSION_EVENT, onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
 export function SubscriptionDashboard() {
-  const session = getStoredUserSession();
+  const session = useSyncExternalStore(subscribeToSession, getStoredUserSession, () => null);
   const requests = useSubscriptionStore((state) => state.requests);
   const submitRequest = useSubscriptionStore((state) => state.submitRequest);
   const loadMyRequests = useSubscriptionStore((state) => state.loadMyRequests);
@@ -162,6 +155,8 @@ export function SubscriptionDashboard() {
   const [showForm, setShowForm] = useState(false);
   const [selectedMonths, setSelectedMonths] = useState(1);
   const [copiedBkash, setCopiedBkash] = useState(false);
+  const [profileTier, setProfileTier] = useState<"free" | "pro">("free");
+  const [profileEndDate, setProfileEndDate] = useState<string | null>(null);
 
   const BKASH_STEPS = useMemo(() => [
     { step: 1, icon: Smartphone, title: "Open bKash", desc: "Launch the bKash app on your phone" },
@@ -178,6 +173,27 @@ export function SubscriptionDashboard() {
     if (!session) return;
     void loadMyRequests();
   }, [loadMyRequests, session]);
+
+  useEffect(() => {
+    if (!session) return;
+
+    let mounted = true;
+    void getOrCreateUserProfile()
+      .then((profile) => {
+        if (!mounted) return;
+        setProfileTier(profile.subscriptionTier);
+        setProfileEndDate(profile.subscriptionEndDate);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setProfileTier("free");
+        setProfileEndDate(null);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [session]);
 
   useEffect(() => {
     if (!errorMessage) return;
@@ -209,13 +225,20 @@ export function SubscriptionDashboard() {
   }, [requests, session]);
 
   const activeSubscription = useMemo(() => {
-    const approved = myRequests.find((request) => request.status === "approved");
-    if (!approved) return null;
-    const start = approved.reviewedAt ? new Date(approved.reviewedAt) : new Date(approved.submittedAt);
-    const end = new Date(start);
-    end.setMonth(end.getMonth() + approved.months);
-    return { start: start.toLocaleDateString("en-GB"), end: end.toLocaleDateString("en-GB"), months: approved.months };
-  }, [myRequests]);
+    if (profileTier !== "pro") return null;
+
+    const end = profileEndDate ? new Date(profileEndDate) : null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (end && end < today) {
+      return null;
+    }
+
+    return {
+      end: end ? end.toLocaleDateString("en-GB") : "No expiry",
+    };
+  }, [profileEndDate, profileTier]);
 
   const hasPendingRequest = myRequests.some((r) => r.status === "pending");
 
@@ -278,7 +301,7 @@ export function SubscriptionDashboard() {
         <div className="relative">
           <div className="flex items-center gap-2">
             <Crown size={18} className="text-amber-300" />
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/80">HabitWallet Pro</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/80">HabitWallet Professional</p>
           </div>
           <h2 className="mt-2 text-2xl font-bold leading-tight">
             {activeSubscription ? "Your Pro Plan" : "Unlock Full Power"}
@@ -291,7 +314,7 @@ export function SubscriptionDashboard() {
           {activeSubscription && (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold backdrop-blur-sm">
               <BadgeCheck size={13} className="text-emerald-300" />
-              Pro Active · {activeSubscription.months} month{activeSubscription.months !== 1 ? "s" : ""}
+              Professional Active
             </div>
           )}
           {hasPendingRequest && !activeSubscription && (
@@ -308,17 +331,17 @@ export function SubscriptionDashboard() {
         <h3 className="mb-3 px-1 text-sm font-semibold text-foreground">Choose your plan</h3>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <PlanCard
-            name="Free"
+            name={SUBSCRIPTION_PLANS.free.name}
             price="0"
             period="forever"
-            features={FREE_FEATURES}
+            features={SUBSCRIPTION_PLANS.free.features}
             isActive={!activeSubscription}
           />
           <PlanCard
-            name="Pro"
+            name={SUBSCRIPTION_PLANS.pro.name}
             price={String(config.proPrice)}
             period="month"
-            features={PRO_FEATURES}
+            features={SUBSCRIPTION_PLANS.pro.features}
             isActive={Boolean(activeSubscription)}
             isPro
             tag="Most Popular"

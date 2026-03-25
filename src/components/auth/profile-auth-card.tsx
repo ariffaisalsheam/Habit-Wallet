@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore, useRef } from "react";
 import { logoutUser, refreshStoredSession } from "@/lib/auth/service";
 import { USER_SESSION_EVENT, getStoredUserSession } from "@/lib/storage/session";
-import { uploadAvatar, updateProfileName, UserProfile, getOrCreateUserProfile } from "@/lib/profile/service";
+import { uploadAvatar, updateProfileName, UserProfile, getCachedUserProfile, getOrCreateUserProfile } from "@/lib/profile/service";
 import { Camera, Edit2, Check, X, Loader2, Crown, Zap } from "lucide-react";
+import { SubscriptionBadge } from "@/features/subscription/components/subscription-badge";
 
 function subscribeToSession(onStoreChange: () => void) {
   if (typeof window === "undefined") {
@@ -44,26 +45,37 @@ export function ProfileAuthCard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!session) {
+      setProfile(null);
+      setNewName("");
+      return;
+    }
+
+    const cached = getCachedUserProfile(session.user_id);
+    if (cached) {
+      setProfile(cached);
+      setNewName(cached.name);
+    } else {
+      setNewName(session.name);
+    }
+
     let mounted = true;
 
     async function refresh() {
-      // First try to refresh session
       const result = await refreshStoredSession();
       if (!mounted) return;
 
-      if (!result.ok) {
-        setMessage(result.message ?? "Session expired. Please sign in again.");
+      if (!result.ok && typeof navigator !== "undefined" && navigator.onLine) {
+        setMessage(result.message ?? "Session refresh failed. Working with local data.");
       }
-      
-      // Always try to load profile to get the latest avatar/name
+
       try {
         const up = await getOrCreateUserProfile();
-        if (mounted) {
-          setProfile(up);
-          setNewName(up.name);
-        }
-      } catch (err) {
-        console.error("Profile load err:", err);
+        if (!mounted) return;
+        setProfile(up);
+        setNewName(up.name);
+      } catch {
+        // Keep cached profile visible for offline-first behavior.
       }
     }
 
@@ -72,7 +84,7 @@ export function ProfileAuthCard() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [session]);
 
   async function handleLogout() {
     setBusy(true);
@@ -159,18 +171,8 @@ export function ProfileAuthCard() {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold tracking-tight text-foreground">My Profile</h2>
           {isAuthenticated && (
-            <div className={`animate-badge-float select-none`}>
-              {isPro ? (
-                <div className="animate-premium-shine flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 px-3 py-1 shadow-lg shadow-amber-500/20">
-                  <Crown size={12} className="text-white" />
-                  <span className="text-[10px] font-black uppercase tracking-wider text-white">PRO</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 rounded-full border border-border bg-surface-elevated px-3 py-1 shadow-sm">
-                  <Zap size={12} className="text-muted-foreground" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">FREE</span>
-                </div>
-              )}
+            <div className="select-none">
+              <SubscriptionBadge tier={isPro ? "pro" : "free"} floating={isPro} />
             </div>
           )}
         </div>
@@ -201,6 +203,10 @@ export function ProfileAuthCard() {
                   <Camera size={20} className="text-white" />
                 </div>
               </div>
+
+              <span className={`avatar-tier-dot ${isPro ? "" : "avatar-tier-dot-free"}`}>
+                {isPro ? <Crown size={10} /> : <Zap size={9} />}
+              </span>
               
               <input 
                 type="file" 

@@ -2,6 +2,7 @@ import { storage, databases, q } from "@/lib/appwrite";
 import { ID } from "appwrite";
 import { getCurrentAuthUser } from "@/lib/auth/service";
 import { appwriteEnv, hasCollectionsConfig, hasDatabaseConfig } from "@/lib/config/env";
+import { STORAGE_KEYS } from "@/lib/storage/keys";
 
 export type UserProfile = {
   userId: string;
@@ -38,6 +39,53 @@ export type UpdateUserProfileInput = {
   country: string;
   language: string;
 };
+
+function canUseStorage() {
+  return typeof window !== "undefined";
+}
+
+function profileCacheKey(userId: string) {
+  return `${STORAGE_KEYS.profileCachePrefix}${userId}`;
+}
+
+function writeProfileCache(profile: UserProfile) {
+  if (!canUseStorage()) return;
+  window.localStorage.setItem(profileCacheKey(profile.userId), JSON.stringify(profile));
+}
+
+function safeParseProfile(raw: string | null) {
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<UserProfile>;
+    if (!parsed.userId || !parsed.email || !parsed.name) return null;
+
+    return {
+      userId: parsed.userId,
+      email: parsed.email,
+      name: parsed.name,
+      phone: parsed.phone ?? "",
+      avatar: parsed.avatar ?? "",
+      country: parsed.country ?? "Bangladesh",
+      language: parsed.language ?? "en",
+      subscriptionTier: parsed.subscriptionTier === "pro" ? "pro" : "free",
+      subscriptionEndDate: parsed.subscriptionEndDate ?? null,
+      updatedAt: parsed.updatedAt ?? new Date().toISOString(),
+    } as UserProfile;
+  } catch {
+    return null;
+  }
+}
+
+export function getCachedUserProfile(userId: string) {
+  if (!canUseStorage()) return null;
+
+  const parsed = safeParseProfile(window.localStorage.getItem(profileCacheKey(userId)));
+  if (!parsed) {
+    window.localStorage.removeItem(profileCacheKey(userId));
+  }
+  return parsed;
+}
 
 function ensureDbReady() {
   if (!hasDatabaseConfig() || !hasCollectionsConfig()) {
@@ -84,7 +132,9 @@ async function createDefaultProfile(user: { id: string; email: string; name: str
     payload
   )) as unknown as ProfileDocument;
 
-  return mapProfile(document, { userId: user.id, email: user.email, name: user.name });
+  const mapped = mapProfile(document, { userId: user.id, email: user.email, name: user.name });
+  writeProfileCache(mapped);
+  return mapped;
 }
 
 async function findProfileByUserId(userId: string) {
@@ -111,11 +161,14 @@ export async function getOrCreateUserProfile() {
   const existing = await findProfileByUserId(auth.user.id);
 
   if (existing) {
-    return mapProfile(existing, {
+    const mapped = mapProfile(existing, {
       userId: auth.user.id,
       email: auth.user.email,
       name: auth.user.name,
     });
+
+    writeProfileCache(mapped);
+    return mapped;
   }
 
   return createDefaultProfile({
@@ -163,11 +216,14 @@ export async function updateUserProfile(input: UpdateUserProfileInput) {
       }
     )) as unknown as ProfileDocument;
 
-    return mapProfile(created, {
+    const mapped = mapProfile(created, {
       userId: auth.user.id,
       email: auth.user.email,
       name: auth.user.name,
     });
+
+    writeProfileCache(mapped);
+    return mapped;
   }
 
   const document = (await databases.updateDocument(
@@ -177,11 +233,14 @@ export async function updateUserProfile(input: UpdateUserProfileInput) {
     payload
   )) as unknown as ProfileDocument;
 
-  return mapProfile(document, {
+  const mapped = mapProfile(document, {
     userId: auth.user.id,
     email: auth.user.email,
     name: auth.user.name,
   });
+
+  writeProfileCache(mapped);
+  return mapped;
 }
 
 export async function getActiveSubscriptionFromProfiles(userId: string) {
@@ -209,11 +268,30 @@ export async function upsertSubscriptionTier(userId: string, tier: "free" | "pro
   const existing = await findProfileByUserId(userId);
 
   if (existing?.$id) {
+    const updatedAt = new Date().toISOString();
+
     await databases.updateDocument(appwriteEnv.databaseId, appwriteEnv.usersCollectionId, existing.$id, {
       subscriptionTier: tier,
       subscriptionEndDate: endDate,
-      updatedAt: now,
+      updatedAt,
     });
+
+    writeProfileCache(
+      mapProfile(
+        {
+          ...existing,
+          subscriptionTier: tier,
+          subscriptionEndDate: endDate,
+          updatedAt,
+        },
+        {
+          userId,
+          email: existing.email ?? "",
+          name: existing.name ?? "",
+        }
+      )
+    );
+
     return;
   }
 
@@ -230,6 +308,19 @@ export async function upsertSubscriptionTier(userId: string, tier: "free" | "pro
     createdAt: now,
     updatedAt: now,
   });
+
+  writeProfileCache({
+    userId,
+    email: "",
+    name: "",
+    phone: "",
+    avatar: "",
+    country: "Bangladesh",
+    language: "en",
+    subscriptionTier: tier,
+    subscriptionEndDate: endDate,
+    updatedAt: now,
+  });
 }
 
 export async function listTopProfiles(limit = 10) {
@@ -244,6 +335,7 @@ export async function uploadAvatar(file: File) {
   ensureDbReady();
   const auth = await getCurrentAuthUser();
   if (!auth.ok || !auth.user) throw new Error("Please sign in.");
+  const now = new Date().toISOString();
 
   // 1. Upload file
   const uploaded = await storage.createFile(appwriteEnv.avatarsBucketId, ID.unique(), file);
@@ -265,16 +357,46 @@ export async function uploadAvatar(file: File) {
 
     await databases.updateDocument(appwriteEnv.databaseId, appwriteEnv.usersCollectionId, existing.$id, {
       avatar: avatarUrl,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
     });
+
+    writeProfileCache(
+      mapProfile(
+        {
+          ...existing,
+          avatar: avatarUrl,
+          updatedAt: now,
+        },
+        {
+          userId: auth.user.id,
+          email: auth.user.email,
+          name: auth.user.name,
+        }
+      )
+    );
   } else {
     await createDefaultProfile({ ...auth.user });
     const fresh = await findProfileByUserId(auth.user.id);
     if (fresh?.$id) {
       await databases.updateDocument(appwriteEnv.databaseId, appwriteEnv.usersCollectionId, fresh.$id, {
         avatar: avatarUrl,
-        updatedAt: new Date().toISOString(),
+        updatedAt: now,
       });
+
+      writeProfileCache(
+        mapProfile(
+          {
+            ...fresh,
+            avatar: avatarUrl,
+            updatedAt: now,
+          },
+          {
+            userId: auth.user.id,
+            email: auth.user.email,
+            name: auth.user.name,
+          }
+        )
+      );
     }
   }
 
@@ -294,8 +416,24 @@ export async function updateProfileName(name: string) {
   const existing = await findProfileByUserId(auth.user.id);
   if (existing?.$id) {
     await databases.updateDocument(appwriteEnv.databaseId, appwriteEnv.usersCollectionId, existing.$id, payload);
+
+    writeProfileCache(
+      mapProfile(
+        {
+          ...existing,
+          name: payload.name,
+          updatedAt: payload.updatedAt,
+        },
+        {
+          userId: auth.user.id,
+          email: auth.user.email,
+          name: auth.user.name,
+        }
+      )
+    );
   } else {
-    await createDefaultProfile({ ...auth.user, name });
+    const created = await createDefaultProfile({ ...auth.user, name });
+    writeProfileCache(created);
   }
 
   return payload;

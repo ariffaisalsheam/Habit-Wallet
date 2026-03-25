@@ -2,7 +2,7 @@ import { MobileAppShell } from "@/components/layout/mobile-app-shell";
 import { ProfileAuthCard } from "@/components/auth/profile-auth-card";
 import { ProfileSettingsCard } from "@/components/auth/profile-settings-card";
 import Link from "next/link";
-import { BadgeDollarSign, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
 
 export default function ProfilePage() {
   return (
@@ -41,7 +41,7 @@ export default function ProfilePage() {
                 <h2 className="text-xl font-bold tracking-tight text-foreground">Premium Experience</h2>
               </div>
               <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-                Unlock advanced analytics, unlimited habits, and custom themes to supercharge your growth journey.
+                Upgrade to Professional for 90-day insights and PDF exports while keeping your core tracking free forever.
               </p>
             </div>
 

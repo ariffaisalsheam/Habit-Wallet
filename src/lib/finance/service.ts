@@ -2,6 +2,7 @@ import { ID } from "appwrite";
 import { createDatabases, q } from "@/lib/appwrite/databases";
 import { getCurrentAuthUser } from "@/lib/auth/service";
 import { appwriteEnv, hasCollectionsConfig, hasDatabaseConfig } from "@/lib/config/env";
+import { assertCloudSyncAccess } from "@/lib/subscription/access";
 import type {
   FinanceTransaction,
   MonthlyBudget,
@@ -71,6 +72,7 @@ function mapBudget(document: BudgetDocument): MonthlyBudget {
 
 export async function loadTransactionsRemote() {
   ensureDbReady();
+  assertCloudSyncAccess();
   const user = await requireAuthUser();
 
   const response = await createDatabases().listDocuments(
@@ -84,6 +86,7 @@ export async function loadTransactionsRemote() {
 
 export async function createTransactionRemote(input: TransactionInput) {
   ensureDbReady();
+  assertCloudSyncAccess();
   const user = await requireAuthUser();
 
   const document = (await createDatabases().createDocument(
@@ -108,6 +111,7 @@ export async function createTransactionRemote(input: TransactionInput) {
 
 export async function updateTransactionRemote(id: string, input: TransactionInput) {
   ensureDbReady();
+  assertCloudSyncAccess();
 
   const document = (await createDatabases().updateDocument(
     appwriteEnv.databaseId,
@@ -128,11 +132,13 @@ export async function updateTransactionRemote(id: string, input: TransactionInpu
 
 export async function deleteTransactionRemote(id: string) {
   ensureDbReady();
+  assertCloudSyncAccess();
   await createDatabases().deleteDocument(appwriteEnv.databaseId, appwriteEnv.transactionsCollectionId, id);
 }
 
 export async function loadBudgetsRemote(monthYear?: string) {
   ensureDbReady();
+  assertCloudSyncAccess();
   const user = await requireAuthUser();
 
   const queries = [q.equal("userId", user.id), q.orderDesc("updatedAt"), q.limit(500)];
@@ -151,6 +157,7 @@ export async function loadBudgetsRemote(monthYear?: string) {
 
 export async function upsertBudgetRemote(input: MonthlyBudgetInput) {
   ensureDbReady();
+  assertCloudSyncAccess();
   const user = await requireAuthUser();
   const databases = createDatabases();
 
@@ -200,5 +207,6 @@ export async function upsertBudgetRemote(input: MonthlyBudgetInput) {
 
 export async function deleteBudgetRemote(id: string) {
   ensureDbReady();
+  assertCloudSyncAccess();
   await createDatabases().deleteDocument(appwriteEnv.databaseId, appwriteEnv.budgetsCollectionId, id);
 }
