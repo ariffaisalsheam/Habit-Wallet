@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { confirmEmailVerification, sendEmailVerification } from "@/lib/auth/service";
 
 export function VerifyEmailCard() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const userId = searchParams.get("userId") ?? "";
   const secret = searchParams.get("secret") ?? "";
@@ -22,6 +24,12 @@ export function VerifyEmailCard() {
     setIsSuccess(result.ok);
     setMessage(result.message ?? (result.ok ? "Email verified." : "Could not verify email."));
     setBusy(false);
+
+    if (result.ok) {
+      window.setTimeout(() => {
+        router.push("/profile");
+      }, 700);
+    }
   }
 
   async function handleResend() {
@@ -44,7 +52,7 @@ export function VerifyEmailCard() {
         </p>
       ) : null}
 
-      {hasToken ? (
+      {hasToken && !isSuccess ? (
         <button
           type="button"
           onClick={handleVerify}
@@ -53,6 +61,13 @@ export function VerifyEmailCard() {
         >
           {busy ? "Verifying..." : "Confirm email"}
         </button>
+      ) : hasToken && isSuccess ? (
+        <Link
+          href="/profile"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:opacity-90"
+        >
+          Continue to app
+        </Link>
       ) : (
         <button
           type="button"

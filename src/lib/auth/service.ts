@@ -1,7 +1,7 @@
 import { ID } from "appwrite";
 import { createAccount } from "@/lib/appwrite/account";
 import { getAppBaseUrl, hasAppwriteConfig } from "@/lib/config/env";
-import { clearUserSession, saveUserSession } from "@/lib/storage/session";
+import { clearUserSession, getStoredUserSession, saveUserSession } from "@/lib/storage/session";
 import type { AuthResult } from "@/lib/auth/types";
 
 type RegisterInput = {
@@ -96,6 +96,41 @@ function isSessionAlreadyActiveError(error: unknown) {
     message.includes("session is active") ||
     message.includes("creation of a session is prohibited")
   );
+}
+
+function isSessionInvalidMessage(message: string | undefined) {
+  if (!message) {
+    return false;
+  }
+
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("session has expired") ||
+    normalized.includes("sign in again") ||
+    normalized.includes("user_session_not_found") ||
+    normalized.includes("user_unauthorized")
+  );
+}
+
+function persistMappedUser(mapped: {
+  id: string;
+  email: string;
+  name: string;
+  labels: string[];
+  isAdmin: boolean;
+  emailVerification: boolean;
+}) {
+  const existing = getStoredUserSession();
+
+  saveUserSession({
+    user_id: mapped.id,
+    email: mapped.email,
+    name: mapped.name,
+    labels: mapped.labels,
+    is_admin: mapped.isAdmin,
+    email_verified: mapped.emailVerification,
+    auth_timestamp: existing?.auth_timestamp ?? Date.now(),
+  });
 }
 
 function missingConfigResult(): AuthResult {
@@ -249,19 +284,14 @@ export async function refreshStoredSession() {
   const result = await getCurrentAuthUser();
 
   if (!result.ok || !result.user) {
-    clearUserSession();
+    if (isSessionInvalidMessage(result.message)) {
+      clearUserSession();
+    }
+
     return result;
   }
 
-  saveUserSession({
-    user_id: result.user.id,
-    email: result.user.email,
-    name: result.user.name,
-    labels: result.user.labels,
-    is_admin: result.user.isAdmin,
-    email_verified: result.user.emailVerification,
-    auth_timestamp: Date.now(),
-  });
+  persistMappedUser(result.user);
 
   return result;
 }
@@ -352,6 +382,14 @@ export async function confirmEmailVerification(userId: string, secret: string): 
   try {
     const account = createAccount();
     await account.updateVerification(userId, secret);
+
+    try {
+      const user = await account.get();
+      const mapped = mapUser(user);
+      persistMappedUser(mapped);
+    } catch {
+      // Verification succeeded; session refresh can happen later if account fetch fails.
+    }
 
     return {
       ok: true,

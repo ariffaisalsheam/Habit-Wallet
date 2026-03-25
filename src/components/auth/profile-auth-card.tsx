@@ -37,6 +37,8 @@ function subscribeToSession(onStoreChange: () => void) {
 export function ProfileAuthCard() {
   const router = useRouter();
   const session = useSyncExternalStore(subscribeToSession, getStoredUserSession, () => null);
+  const sessionUserId = session?.user_id;
+  const sessionName = session?.name;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -46,18 +48,18 @@ export function ProfileAuthCard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!session) {
+    if (!session || !sessionUserId) {
       setProfile(null);
       setNewName("");
       return;
     }
 
-    const cached = getCachedUserProfile(session.user_id);
+    const cached = getCachedUserProfile(sessionUserId);
     if (cached) {
       setProfile(cached);
       setNewName(cached.name);
     } else {
-      setNewName(session.name);
+      setNewName(sessionName ?? "");
     }
 
     let mounted = true;
@@ -85,7 +87,7 @@ export function ProfileAuthCard() {
     return () => {
       mounted = false;
     };
-  }, [session]);
+  }, [session, sessionName, sessionUserId]);
 
   async function handleLogout() {
     setBusy(true);
