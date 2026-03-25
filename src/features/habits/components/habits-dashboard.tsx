@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  AlertTriangle,
   CheckCircle2,
   CloudSun,
   Moon,
@@ -33,6 +34,20 @@ const habitSchema = z.object({
 
 type HabitValues = z.input<typeof habitSchema>;
 type DayBlock = "morning" | "afternoon" | "evening";
+type Notice = {
+  id: string;
+  kind: "success" | "error";
+  message: string;
+};
+
+const DEFAULT_HABIT_FORM_VALUES: HabitValues = {
+  title: "",
+  category: "Health",
+  color: "#1f6b4a",
+  frequency: "daily",
+  timeBlock: "morning",
+  targetDaysPerWeek: 7,
+};
 
 const dayBlockMeta: Record<DayBlock, { title: string; icon: typeof Sunrise; description: string }> = {
   morning: {
@@ -81,6 +96,7 @@ export function HabitsDashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [notices, setNotices] = useState<Notice[]>([]);
   const [reflection, setReflection] = useState(() => {
     if (typeof window === "undefined") return "";
     return window.localStorage.getItem(reflectionKey) ?? "";
@@ -106,14 +122,7 @@ export function HabitsDashboard() {
     formState: { errors, isSubmitting },
   } = useForm<HabitValues>({
     resolver: zodResolver(habitSchema),
-    defaultValues: {
-      title: "",
-      category: "Health",
-      color: "#1f6b4a",
-      frequency: "daily",
-      timeBlock: "morning",
-      targetDaysPerWeek: 7,
-    },
+    defaultValues: DEFAULT_HABIT_FORM_VALUES,
   });
 
   const completedToday = habits.filter((habit) =>
@@ -170,6 +179,8 @@ export function HabitsDashboard() {
   useEffect(() => {
     if (!errorMessage) return;
 
+    pushNotice("error", errorMessage);
+
     const timer = window.setTimeout(() => {
       clearHabitsError();
     }, 4500);
@@ -179,6 +190,8 @@ export function HabitsDashboard() {
 
   useEffect(() => {
     if (!successMessage) return;
+
+    pushNotice("success", successMessage);
 
     const timer = window.setTimeout(() => {
       setSuccessMessage(null);
@@ -202,41 +215,57 @@ export function HabitsDashboard() {
     if (editingId) {
       await updateHabit(editingId, payload);
       setEditingId(null);
-      setShowForm(false);
       setSuccessMessage("Habit updated successfully.");
     } else {
       await addHabit(payload);
       setSuccessMessage("Habit added successfully.");
     }
 
-    reset({
-      title: "",
-      category: "Health",
-      color: "#1f6b4a",
-      frequency: "daily",
-      timeBlock: "morning",
-      targetDaysPerWeek: 7,
-    });
+    reset(DEFAULT_HABIT_FORM_VALUES);
+
+    if (!editingId) {
+      setShowForm(false);
+    }
   });
 
   function startEdit(habit: HabitItem) {
     setEditingId(habit.id);
-    setShowForm(true);
+    setShowForm(false);
     reset(toFormValues(habit));
   }
 
   function cancelEdit() {
     setEditingId(null);
-    setShowForm(false);
-    reset({
-      title: "",
-      category: "Health",
-      color: "#1f6b4a",
-      frequency: "daily",
-      timeBlock: "morning",
-      targetDaysPerWeek: 7,
-    });
+    reset(DEFAULT_HABIT_FORM_VALUES);
   }
+
+  function pushNotice(kind: Notice["kind"], message: string) {
+    const id = `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setNotices((current) => [...current, { id, kind, message }]);
+
+    window.setTimeout(() => {
+      setNotices((current) => current.filter((notice) => notice.id !== id));
+    }, kind === "error" ? 6500 : 3200);
+  }
+
+  const editingHabit = editingId ? habits.find((habit) => habit.id === editingId) ?? null : null;
+
+  useEffect(() => {
+    if (!editingId) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        cancelEdit();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [editingId]);
 
   async function handleSyncNow() {
     await syncPending();
@@ -260,10 +289,26 @@ export function HabitsDashboard() {
           </button>
         </div>
       ) : null}
-      {errorMessage ? <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs text-amber-800">{errorMessage}</p> : null}
-      {successMessage ? (
-        <p className="rounded-xl bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-800">{successMessage}</p>
-      ) : null}
+
+      <div className="pointer-events-none fixed right-3 top-20 z-[95] flex w-[min(90vw,24rem)] flex-col gap-2">
+        {notices.map((notice) => (
+          <div
+            key={notice.id}
+            role="status"
+            aria-live="polite"
+            className={`pointer-events-auto rounded-2xl border px-3 py-2 text-sm shadow-[var(--soft-shadow)] ${
+              notice.kind === "error"
+                ? "border-amber-300 bg-amber-100 text-amber-900"
+                : "border-emerald-300 bg-emerald-100 text-emerald-900"
+            }`}
+          >
+            <p className="inline-flex items-start gap-2">
+              {notice.kind === "error" ? <AlertTriangle size={16} className="mt-0.5" /> : <CheckCircle2 size={16} className="mt-0.5" />}
+              <span>{notice.message}</span>
+            </p>
+          </div>
+        ))}
+      </div>
 
       <article className="wellness-card animate-breathe relative overflow-hidden rounded-[2rem] p-5">
         <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-accent/15 blur-2xl" />
@@ -452,17 +497,14 @@ export function HabitsDashboard() {
 
           <article className="wellness-card rounded-[2rem] p-5">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">
-                {editingId ? "Edit habit" : "Add habit"}
-              </h3>
+              <h3 className="text-lg font-semibold text-foreground">Add habit</h3>
               <button
                 type="button"
                 onClick={() => {
-                  if (editingId) {
-                    cancelEdit();
-                    return;
-                  }
                   setShowForm((value) => !value);
+                  if (!showForm) {
+                    reset(DEFAULT_HABIT_FORM_VALUES);
+                  }
                 }}
                 className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full border border-border/70 bg-surface-elevated text-foreground"
                 aria-label={showForm ? "Hide habit form" : "Show habit form"}
@@ -471,7 +513,7 @@ export function HabitsDashboard() {
               </button>
             </div>
 
-            {showForm || editingId ? (
+            {showForm ? (
               <form className="mt-3 space-y-3" onSubmit={onSubmit} noValidate>
                 <label className="block">
                   <span className="mb-1 block text-xs font-medium text-muted-foreground">Habit title</span>
@@ -550,12 +592,15 @@ export function HabitsDashboard() {
                     disabled={isSubmitting}
                     className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-primary/85 px-4 text-sm font-semibold text-white"
                   >
-                    {editingId ? "Save changes" : "Add habit"}
+                    Add habit
                   </button>
-                  {(editingId || showForm) && (
+                  {showForm && (
                     <button
                       type="button"
-                      onClick={cancelEdit}
+                      onClick={() => {
+                        setShowForm(false);
+                        reset(DEFAULT_HABIT_FORM_VALUES);
+                      }}
                       className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-border px-4 text-sm font-semibold text-foreground"
                     >
                       Cancel
@@ -571,6 +616,117 @@ export function HabitsDashboard() {
           </article>
         </div>
       </div>
+
+      {editingHabit ? (
+        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/45 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label="Edit habit">
+          <div className="wellness-card max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-[2rem] p-5 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Edit Habit</p>
+                <h3 className="text-lg font-semibold text-foreground">{editingHabit.title}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full border border-border/70 bg-surface-elevated text-foreground"
+                aria-label="Close edit modal"
+              >
+                <Plus size={16} className="rotate-45" />
+              </button>
+            </div>
+
+            <form className="mt-4 space-y-3" onSubmit={onSubmit} noValidate>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-muted-foreground">Habit title</span>
+                <input
+                  type="text"
+                  placeholder="e.g. Read 20 minutes"
+                  className="min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
+                  {...register("title")}
+                />
+                {errors.title ? <span className="mt-1 block text-xs text-red-600">{errors.title.message}</span> : null}
+              </label>
+
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium text-muted-foreground">Category</span>
+                  <input
+                    type="text"
+                    className="min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
+                    {...register("category")}
+                  />
+                  {errors.category ? (
+                    <span className="mt-1 block text-xs text-red-600">{errors.category.message}</span>
+                  ) : null}
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium text-muted-foreground">Color</span>
+                  <input
+                    type="color"
+                    className="min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-2"
+                    {...register("color")}
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium text-muted-foreground">Frequency</span>
+                  <select
+                    className="app-select min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
+                    {...register("frequency")}
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium text-muted-foreground">Time block</span>
+                  <select
+                    className="app-select min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
+                    {...register("timeBlock")}
+                  >
+                    <option value="morning">Morning</option>
+                    <option value="afternoon">Afternoon</option>
+                    <option value="evening">Evening</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium text-muted-foreground">Target days/week</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={7}
+                    className="min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
+                    {...register("targetDaysPerWeek")}
+                  />
+                </label>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-primary/85 px-4 text-sm font-semibold text-white"
+                >
+                  Save changes
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-border px-4 text-sm font-semibold text-foreground"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

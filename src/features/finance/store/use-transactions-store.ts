@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { STORAGE_KEYS } from "@/lib/storage/keys";
+import { isAppwriteDocumentNotFoundError } from "@/lib/appwrite/errors";
 import {
   createTransactionRemote,
   deleteTransactionRemote,
@@ -11,8 +12,11 @@ import {
 } from "@/lib/finance/service";
 import {
   enqueueSyncOperation,
+  getDeferredSyncCount,
+  getRetryableSyncOperations,
   getSyncQueueByCollection,
   getSyncQueueCount,
+  markSyncFailure,
   markSyncAttempt,
   removeSyncByDedupeKey,
   removeSyncOperation,
@@ -92,8 +96,22 @@ export const useTransactionsStore = create<TransactionsState>()(
         }
 
         set({ syncing: true, errorMessage: null });
-        const operations = getSyncQueueByCollection("transactions");
+        const operations = getRetryableSyncOperations("transactions", 25);
+        if (operations.length === 0) {
+          const deferredCount = getDeferredSyncCount("transactions");
+          set({
+            syncing: false,
+            pendingQueueCount: getSyncQueueCount("transactions"),
+            errorMessage:
+              deferredCount > 0
+                ? `Waiting to retry ${deferredCount} transaction change(s).`
+                : null,
+          });
+          return;
+        }
+
         let firstError: string | null = null;
+        let syncedAnyOperation = false;
 
         for (const operation of operations) {
           markSyncAttempt(operation.id);
@@ -121,12 +139,33 @@ export const useTransactionsStore = create<TransactionsState>()(
             }
 
             removeSyncOperation(operation.id);
+            syncedAnyOperation = true;
             setLastSyncNow();
           } catch (error) {
+            if (isAppwriteDocumentNotFoundError(error)) {
+              removeSyncOperation(operation.id);
+              syncedAnyOperation = true;
+              setLastSyncNow();
+              continue;
+            }
+
+            const syncError =
+              error instanceof Error ? error.message : "Some transaction changes are still pending sync.";
+            markSyncFailure(operation.id, syncError);
+
             if (!firstError) {
-              firstError = error instanceof Error ? error.message : "Some transaction changes are still pending sync.";
+              firstError = syncError;
             }
           }
+        }
+
+        if (!syncedAnyOperation) {
+          set({
+            syncing: false,
+            pendingQueueCount: getSyncQueueCount("transactions"),
+            errorMessage: firstError ?? "Transaction sync is temporarily delayed.",
+          });
+          return;
         }
 
         try {

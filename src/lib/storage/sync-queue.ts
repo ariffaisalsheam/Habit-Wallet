@@ -13,12 +13,18 @@ export type SyncQueueItem = {
   payload: unknown;
   queuedAt: string;
   attempts: number;
+  lastAttemptAt?: string;
+  nextRetryAt?: string;
+  lastError?: string;
   dedupeKey?: string;
 };
 
 export const LAST_SYNC_EVENT = "hft_last_sync_changed";
 
 const MAX_QUEUE_ITEMS = 500;
+const MAX_SYNC_ATTEMPTS = 8;
+const RETRY_BASE_DELAY_MS = 8_000;
+const RETRY_MAX_DELAY_MS = 6 * 60 * 60 * 1000;
 
 function canUseStorage() {
   return typeof window !== "undefined";
@@ -45,12 +51,21 @@ function safeParseQueue(raw: string | null): SyncQueueItem[] {
         typeof item.collection === "string" &&
         typeof item.operation === "string" &&
         typeof item.queuedAt === "string" &&
-        typeof item.attempts === "number"
+        typeof item.attempts === "number" &&
+        (typeof item.lastAttemptAt === "undefined" || typeof item.lastAttemptAt === "string") &&
+        (typeof item.nextRetryAt === "undefined" || typeof item.nextRetryAt === "string") &&
+        (typeof item.lastError === "undefined" || typeof item.lastError === "string")
       );
     });
   } catch {
     return [];
   }
+}
+
+function getRetryDelayMs(attempts: number) {
+  const exponent = Math.max(0, attempts - 1);
+  const jitter = 0.85 + Math.random() * 0.3;
+  return Math.min(RETRY_BASE_DELAY_MS * 2 ** exponent * jitter, RETRY_MAX_DELAY_MS);
 }
 
 function writeQueue(queue: SyncQueueItem[]) {
@@ -79,6 +94,47 @@ export function getSyncQueueCount(collection?: SyncCollection) {
   }
 
   return getSyncQueueByCollection(collection).length;
+}
+
+export function getRetryableSyncOperations(collection: SyncCollection, limit = 25) {
+  const now = Date.now();
+
+  return getSyncQueueByCollection(collection)
+    .filter((item) => {
+      if (item.attempts >= MAX_SYNC_ATTEMPTS) {
+        return false;
+      }
+
+      if (!item.nextRetryAt) {
+        return true;
+      }
+
+      const retryAt = Date.parse(item.nextRetryAt);
+      if (Number.isNaN(retryAt)) {
+        return true;
+      }
+
+      return retryAt <= now;
+    })
+    .slice(0, limit);
+}
+
+export function getDeferredSyncCount(collection?: SyncCollection) {
+  const now = Date.now();
+  const queue = collection ? getSyncQueueByCollection(collection) : readSyncQueue();
+
+  return queue.filter((item) => {
+    if (item.attempts >= MAX_SYNC_ATTEMPTS) {
+      return true;
+    }
+
+    if (!item.nextRetryAt) {
+      return false;
+    }
+
+    const retryAt = Date.parse(item.nextRetryAt);
+    return !Number.isNaN(retryAt) && retryAt > now;
+  }).length;
 }
 
 export function hasQueuedDedupeKey(dedupeKey: string) {
@@ -130,9 +186,35 @@ export function markSyncAttempt(id: string) {
       ? {
           ...item,
           attempts: item.attempts + 1,
+          lastAttemptAt: new Date().toISOString(),
         }
       : item
   );
+
+  writeQueue(nextQueue);
+}
+
+export function markSyncFailure(id: string, message: string) {
+  const queue = readSyncQueue();
+  const nextQueue = queue.map((item) => {
+    if (item.id !== id) {
+      return item;
+    }
+
+    if (item.attempts >= MAX_SYNC_ATTEMPTS) {
+      return {
+        ...item,
+        nextRetryAt: undefined,
+        lastError: message,
+      };
+    }
+
+    return {
+      ...item,
+      nextRetryAt: new Date(Date.now() + getRetryDelayMs(item.attempts)).toISOString(),
+      lastError: message,
+    };
+  });
 
   writeQueue(nextQueue);
 }

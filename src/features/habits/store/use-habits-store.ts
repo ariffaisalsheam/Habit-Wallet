@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { STORAGE_KEYS } from "@/lib/storage/keys";
+import { isAppwriteDocumentNotFoundError } from "@/lib/appwrite/errors";
 import {
   createHabitRemote,
   loadHabitsBundle,
@@ -13,9 +14,11 @@ import {
 } from "@/lib/habits/service";
 import {
   enqueueSyncOperation,
-  getSyncQueueByCollection,
+  getDeferredSyncCount,
+  getRetryableSyncOperations,
   getSyncQueueCount,
   hasQueuedDedupeKey,
+  markSyncFailure,
   markSyncAttempt,
   removeSyncByDedupeKey,
   removeSyncByDedupePrefix,
@@ -90,11 +93,22 @@ export const useHabitsStore = create<HabitsState>()(
         }
 
         set({ syncing: true, errorMessage: null });
-        const habitOps = getSyncQueueByCollection("habits");
-        const completionOps = getSyncQueueByCollection("habit-completions");
+        const habitOps = getRetryableSyncOperations("habits", 20);
+        const completionOps = getRetryableSyncOperations("habit-completions", 20);
         const operations = [...habitOps, ...completionOps];
+        if (operations.length === 0) {
+          const deferredCount = getDeferredSyncCount("habits") + getDeferredSyncCount("habit-completions");
+          set({
+            syncing: false,
+            pendingQueueCount: getHabitsPendingCount(),
+            errorMessage: deferredCount > 0 ? `Waiting to retry ${deferredCount} habit change(s).` : null,
+          });
+          return;
+        }
+
         const localHabitToRemoteId = new Map<string, string>();
         let firstError: string | null = null;
+        let syncedAnyOperation = false;
 
         for (const operation of operations) {
           markSyncAttempt(operation.id);
@@ -137,12 +151,32 @@ export const useHabitsStore = create<HabitsState>()(
             }
 
             removeSyncOperation(operation.id);
+            syncedAnyOperation = true;
             setLastSyncNow();
           } catch (error) {
+            if (isAppwriteDocumentNotFoundError(error)) {
+              removeSyncOperation(operation.id);
+              syncedAnyOperation = true;
+              setLastSyncNow();
+              continue;
+            }
+
+            const syncError = error instanceof Error ? error.message : "Some habit changes are still pending sync.";
+            markSyncFailure(operation.id, syncError);
+
             if (!firstError) {
-              firstError = error instanceof Error ? error.message : "Some habit changes are still pending sync.";
+              firstError = syncError;
             }
           }
+        }
+
+        if (!syncedAnyOperation) {
+          set({
+            syncing: false,
+            pendingQueueCount: getHabitsPendingCount(),
+            errorMessage: firstError ?? "Habit sync is temporarily delayed.",
+          });
+          return;
         }
 
         try {

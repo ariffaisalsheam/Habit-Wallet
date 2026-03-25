@@ -3,12 +3,15 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { STORAGE_KEYS } from "@/lib/storage/keys";
+import { isAppwriteDocumentNotFoundError } from "@/lib/appwrite/errors";
 import { deleteBudgetRemote, loadBudgetsRemote, upsertBudgetRemote } from "@/lib/finance/service";
 import {
   enqueueSyncOperation,
-  getSyncQueueByCollection,
+  getDeferredSyncCount,
+  getRetryableSyncOperations,
   getSyncQueueCount,
   hasQueuedDedupeKey,
+  markSyncFailure,
   markSyncAttempt,
   removeSyncByDedupeKey,
   removeSyncOperation,
@@ -73,8 +76,20 @@ export const useBudgetsStore = create<BudgetsState>()(
         }
 
         set({ syncing: true, errorMessage: null });
-        const operations = getSyncQueueByCollection("budgets");
+        const operations = getRetryableSyncOperations("budgets", 25);
+        if (operations.length === 0) {
+          const deferredCount = getDeferredSyncCount("budgets");
+          set({
+            syncing: false,
+            pendingQueueCount: getSyncQueueCount("budgets"),
+            errorMessage:
+              deferredCount > 0 ? `Waiting to retry ${deferredCount} budget change(s).` : null,
+          });
+          return;
+        }
+
         let firstError: string | null = null;
+        let syncedAnyOperation = false;
 
         for (const operation of operations) {
           markSyncAttempt(operation.id);
@@ -91,12 +106,32 @@ export const useBudgetsStore = create<BudgetsState>()(
             }
 
             removeSyncOperation(operation.id);
+            syncedAnyOperation = true;
             setLastSyncNow();
           } catch (error) {
+            if (isAppwriteDocumentNotFoundError(error)) {
+              removeSyncOperation(operation.id);
+              syncedAnyOperation = true;
+              setLastSyncNow();
+              continue;
+            }
+
+            const syncError = error instanceof Error ? error.message : "Some budget changes are still pending sync.";
+            markSyncFailure(operation.id, syncError);
+
             if (!firstError) {
-              firstError = error instanceof Error ? error.message : "Some budget changes are still pending sync.";
+              firstError = syncError;
             }
           }
+        }
+
+        if (!syncedAnyOperation) {
+          set({
+            syncing: false,
+            pendingQueueCount: getSyncQueueCount("budgets"),
+            errorMessage: firstError ?? "Budget sync is temporarily delayed.",
+          });
+          return;
         }
 
         try {
