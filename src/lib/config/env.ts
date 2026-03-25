@@ -12,6 +12,7 @@ export const appwriteEnv = {
   transactionsCollectionId:
     process.env.NEXT_PUBLIC_APPWRITE_TRANSACTIONS_COLLECTION_ID ?? "transactions",
   budgetsCollectionId: process.env.NEXT_PUBLIC_APPWRITE_BUDGETS_COLLECTION_ID ?? "budgets",
+  avatarsBucketId: process.env.NEXT_PUBLIC_APPWRITE_AVATARS_BUCKET_ID ?? "avatars",
 };
 
 export function hasAppwriteConfig() {

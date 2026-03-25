@@ -199,3 +199,47 @@ export async function toggleHabitCompletionRemote(habitId: string, date: string)
 
   return mapCompletion(completion);
 }
+
+export async function setHabitCompletionRemote(habitId: string, date: string, completed: boolean) {
+  ensureDbReady();
+  const user = await requireAuthUser();
+  const databases = createDatabases();
+
+  const existing = await databases.listDocuments(
+    appwriteEnv.databaseId,
+    appwriteEnv.habitCompletionsCollectionId,
+    [q.equal("habitId", habitId), q.equal("completionDate", date), q.limit(1)]
+  );
+
+  if (completed) {
+    if (existing.documents.length > 0) {
+      return mapCompletion(existing.documents[0] as unknown as HabitCompletionDocument);
+    }
+
+    const completion = (await databases.createDocument(
+      appwriteEnv.databaseId,
+      appwriteEnv.habitCompletionsCollectionId,
+      ID.unique(),
+      {
+        userId: user.id,
+        habitId,
+        completionDate: date,
+        completedAt: new Date().toISOString(),
+        notes: "",
+        synced: true,
+      }
+    )) as unknown as HabitCompletionDocument;
+
+    return mapCompletion(completion);
+  }
+
+  if (existing.documents.length > 0) {
+    await databases.deleteDocument(
+      appwriteEnv.databaseId,
+      appwriteEnv.habitCompletionsCollectionId,
+      existing.documents[0].$id
+    );
+  }
+
+  return null;
+}

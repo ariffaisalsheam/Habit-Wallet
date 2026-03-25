@@ -1,4 +1,5 @@
-import { createDatabases, q } from "@/lib/appwrite/databases";
+import { storage, databases, q } from "@/lib/appwrite";
+import { ID } from "appwrite";
 import { getCurrentAuthUser } from "@/lib/auth/service";
 import { appwriteEnv, hasCollectionsConfig, hasDatabaseConfig } from "@/lib/config/env";
 
@@ -60,7 +61,6 @@ function mapProfile(doc: ProfileDocument, fallback: { userId: string; email: str
 }
 
 async function createDefaultProfile(user: { id: string; email: string; name: string }) {
-  const databases = createDatabases();
   const now = new Date().toISOString();
 
   const payload: ProfileDocument = {
@@ -88,7 +88,7 @@ async function createDefaultProfile(user: { id: string; email: string; name: str
 }
 
 async function findProfileByUserId(userId: string) {
-  const response = await createDatabases().listDocuments(appwriteEnv.databaseId, appwriteEnv.usersCollectionId, [
+  const response = await databases.listDocuments(appwriteEnv.databaseId, appwriteEnv.usersCollectionId, [
     q.equal("userId", userId),
     q.limit(1),
   ]);
@@ -133,7 +133,6 @@ export async function updateUserProfile(input: UpdateUserProfileInput) {
     throw new Error(auth.message ?? "Please sign in to update your profile.");
   }
 
-  const databases = createDatabases();
   const existing = await findProfileByUserId(auth.user.id);
   const payload: Partial<ProfileDocument> = {
     name: input.name.trim(),
@@ -206,7 +205,6 @@ export async function getActiveSubscriptionFromProfiles(userId: string) {
 export async function upsertSubscriptionTier(userId: string, tier: "free" | "pro", endDate: string | null) {
   ensureDbReady();
 
-  const databases = createDatabases();
   const now = new Date().toISOString();
   const existing = await findProfileByUserId(userId);
 
@@ -236,10 +234,69 @@ export async function upsertSubscriptionTier(userId: string, tier: "free" | "pro
 
 export async function listTopProfiles(limit = 10) {
   ensureDbReady();
-
-  const databases = createDatabases();
   return databases.listDocuments(appwriteEnv.databaseId, appwriteEnv.usersCollectionId, [
     q.orderDesc("updatedAt"),
     q.limit(limit),
   ]);
+}
+
+export async function uploadAvatar(file: File) {
+  ensureDbReady();
+  const auth = await getCurrentAuthUser();
+  if (!auth.ok || !auth.user) throw new Error("Please sign in.");
+
+  // 1. Upload file
+  const uploaded = await storage.createFile(appwriteEnv.avatarsBucketId, ID.unique(), file);
+
+  // 2. Get file preview URL
+  const avatarUrl = `${appwriteEnv.endpoint}/storage/buckets/${appwriteEnv.avatarsBucketId}/files/${uploaded.$id}/view?project=${appwriteEnv.projectId}`;
+
+  // 3. Update profile
+  const existing = await findProfileByUserId(auth.user.id);
+  if (existing?.$id) {
+    if (existing.avatar) {
+      try {
+        const oldFileId = existing.avatar.split("/files/")[1]?.split("/")[0];
+        if (oldFileId) await storage.deleteFile(appwriteEnv.avatarsBucketId, oldFileId);
+      } catch (e) {
+        console.warn("Failed to delete old avatar:", e);
+      }
+    }
+
+    await databases.updateDocument(appwriteEnv.databaseId, appwriteEnv.usersCollectionId, existing.$id, {
+      avatar: avatarUrl,
+      updatedAt: new Date().toISOString(),
+    });
+  } else {
+    await createDefaultProfile({ ...auth.user });
+    const fresh = await findProfileByUserId(auth.user.id);
+    if (fresh?.$id) {
+      await databases.updateDocument(appwriteEnv.databaseId, appwriteEnv.usersCollectionId, fresh.$id, {
+        avatar: avatarUrl,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  }
+
+  return avatarUrl;
+}
+
+export async function updateProfileName(name: string) {
+  ensureDbReady();
+  const auth = await getCurrentAuthUser();
+  if (!auth.ok || !auth.user) throw new Error("Please sign in.");
+
+  const payload = {
+    name: name.trim(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const existing = await findProfileByUserId(auth.user.id);
+  if (existing?.$id) {
+    await databases.updateDocument(appwriteEnv.databaseId, appwriteEnv.usersCollectionId, existing.$id, payload);
+  } else {
+    await createDefaultProfile({ ...auth.user, name });
+  }
+
+  return payload;
 }

@@ -6,14 +6,14 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import {
   getOrCreateUserProfile,
-  type UpdateUserProfileInput,
   updateUserProfile,
+  type UpdateUserProfileInput,
 } from "@/lib/profile/service";
+import { User, Phone, Globe, Languages, Save, Loader2, Sparkles } from "lucide-react";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   phone: z.string().max(20),
-  avatar: z.string().url("Enter a valid image URL.").or(z.literal("")),
   country: z.string().min(2, "Country is required."),
   language: z.string().min(2, "Language is required."),
 });
@@ -35,7 +35,6 @@ export function ProfileSettingsCard() {
     defaultValues: {
       name: "",
       phone: "",
-      avatar: "",
       country: "Bangladesh",
       language: "en",
     },
@@ -52,7 +51,6 @@ export function ProfileSettingsCard() {
         reset({
           name: profile.name,
           phone: profile.phone,
-          avatar: profile.avatar,
           country: profile.country,
           language: profile.language,
         });
@@ -63,100 +61,132 @@ export function ProfileSettingsCard() {
         if (!mounted) return;
         setMessage(error instanceof Error ? error.message : "Could not load profile.");
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     }
 
     void loadProfile();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [reset]);
 
   const onSubmit = handleSubmit(async (values) => {
     const payload: UpdateUserProfileInput = {
       name: values.name,
       phone: values.phone,
-      avatar: values.avatar,
       country: values.country,
       language: values.language,
+      avatar: "", // Handled separately via uploadAvatar if needed, but keeping it in the store
     };
 
     try {
       const profile = await updateUserProfile(payload);
       setSummary({ tier: profile.subscriptionTier, endDate: profile.subscriptionEndDate });
-      setMessage("Profile updated.");
+      setMessage("Profile settings updated successfully!");
+      setTimeout(() => setMessage(null), 3000);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Profile update failed.");
     }
   });
 
+  if (loading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center rounded-[2.5rem] border border-border/80 bg-surface shadow-[var(--soft-shadow)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
+      </div>
+    );
+  }
+
   return (
-    <article className="rounded-[2rem] border border-border/80 bg-surface p-4 shadow-[var(--soft-shadow)]">
-      <h2 className="text-base font-semibold text-foreground">Profile settings</h2>
-      <p className="mt-1 text-xs text-muted-foreground">Your profile is now saved in Appwrite and synced across sessions.</p>
+    <article className="animate-soft-rise overflow-hidden rounded-[2.5rem] border border-border/80 bg-surface shadow-[var(--soft-shadow)]">
+      <div className="border-b border-border/50 bg-muted/5 p-6">
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Account Settings</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Modify your identity and regional preferences.</p>
+      </div>
 
-      {summary ? (
-        <p className="mt-2 rounded-xl bg-background px-3 py-2 text-xs text-muted-foreground">
-          Plan: <span className="font-semibold text-foreground uppercase">{summary.tier}</span>
-          {summary.endDate ? ` · Pro active until ${summary.endDate}` : " · No active paid plan"}
-        </p>
-      ) : null}
+      <div className="p-6">
+        {summary && (
+          <div className="mb-6 flex items-center justify-between rounded-2xl bg-primary/5 px-4 py-3 border border-primary/10">
+            <span className="text-sm font-medium text-muted-foreground tracking-wide uppercase">Subscription Status</span>
+            <span className={`text-xs font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${summary.tier === 'pro' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-secondary/20 text-secondary'}`}>
+              {summary.tier}
+            </span>
+          </div>
+        )}
 
-      {loading ? (
-        <p className="mt-3 text-sm text-muted-foreground">Loading profile...</p>
-      ) : (
-        <form className="mt-3 space-y-3" onSubmit={onSubmit} noValidate>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">Name</span>
-            <input className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" {...register("name")} />
-            {errors.name ? <span className="mt-1 block text-xs text-red-600">{errors.name.message}</span> : null}
-          </label>
-
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">Phone</span>
-              <input className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" {...register("phone")} />
-              {errors.phone ? <span className="mt-1 block text-xs text-red-600">{errors.phone.message}</span> : null}
+        <form className="space-y-5" onSubmit={onSubmit} noValidate>
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+              <User size={14} className="text-primary" /> Full Name
             </label>
-
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">Language</span>
-              <input className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" {...register("language")} />
-              {errors.language ? <span className="mt-1 block text-xs text-red-600">{errors.language.message}</span> : null}
-            </label>
+            <div className="relative group">
+              <input 
+                className="min-h-12 w-full rounded-2xl border border-border bg-surface-elevated px-4 text-sm font-medium transition-all focus:border-primary/50 focus:outline-none focus:ring-4 focus:ring-primary/5 group-hover:border-border-hover" 
+                {...register("name")} 
+              />
+            </div>
+            {errors.name && <p className="text-[10px] font-bold text-red-500 uppercase tracking-tight">{errors.name.message}</p>}
           </div>
 
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">Avatar URL</span>
-            <input
-              className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
-              placeholder="https://example.com/avatar.png"
-              {...register("avatar")}
-            />
-            {errors.avatar ? <span className="mt-1 block text-xs text-red-600">{errors.avatar.message}</span> : null}
-          </label>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+                <Phone size={14} className="text-primary" /> Phone Number
+              </label>
+              <input 
+                className="min-h-12 w-full rounded-2xl border border-border bg-surface-elevated px-4 text-sm font-medium transition-all focus:border-primary/50 focus:outline-none focus:ring-4 focus:ring-primary/5" 
+                {...register("phone")} 
+              />
+              {errors.phone && <p className="text-[10px] font-bold text-red-500 uppercase tracking-tight">{errors.phone.message}</p>}
+            </div>
 
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">Country</span>
-            <input className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" {...register("country")} />
-            {errors.country ? <span className="mt-1 block text-xs text-red-600">{errors.country.message}</span> : null}
-          </label>
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+                <Languages size={14} className="text-primary" /> Preferred Language
+              </label>
+              <select 
+                className="min-h-12 w-full rounded-2xl border border-border bg-surface-elevated px-4 text-sm font-medium transition-all focus:border-primary/50 focus:outline-none focus:ring-4 focus:ring-primary/5 cursor-pointer appearance-none" 
+                {...register("language")}
+              >
+                <option value="en">English (Global)</option>
+                <option value="bn">Bengali (Native)</option>
+              </select>
+              {errors.language && <p className="text-[10px] font-bold text-red-500 uppercase tracking-tight">{errors.language.message}</p>}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+              <Globe size={14} className="text-primary" /> Home Region/Country
+            </label>
+            <input 
+              className="min-h-12 w-full rounded-2xl border border-border bg-surface-elevated px-4 text-sm font-medium transition-all focus:border-primary/50 focus:outline-none focus:ring-4 focus:ring-primary/5" 
+              {...register("country")} 
+            />
+            {errors.country && <p className="text-[10px] font-bold text-red-500 uppercase tracking-tight">{errors.country.message}</p>}
+          </div>
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white"
+            className="relative inline-flex min-h-14 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-primary px-6 text-sm font-black uppercase tracking-[0.15em] text-white shadow-lg shadow-primary/20 transition-all hover:translate-y-[-2px] hover:shadow-xl active:translate-y-0 disabled:opacity-70 group"
           >
-            {isSubmitting ? "Saving..." : "Save profile"}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+            {isSubmitting ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <>
+                <Save size={18} /> Update Profile
+              </>
+            )}
           </button>
         </form>
-      )}
+      </div>
 
-      {message ? <p className="mt-3 rounded-xl bg-background px-3 py-2 text-xs text-muted-foreground">{message}</p> : null}
+      {message && (
+        <div className="p-4 bg-emerald-500/10 border-t border-emerald-500/20 text-center animate-soft-rise">
+          <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest">{message}</p>
+        </div>
+      )}
     </article>
   );
 }

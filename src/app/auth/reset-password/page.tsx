@@ -1,5 +1,6 @@
 import { AuthShell } from "@/components/auth/auth-shell";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
+import { Suspense } from "react";
 
 export default function ResetPasswordPage() {
   return (
@@ -10,7 +11,9 @@ export default function ResetPasswordPage() {
       altHref="/auth/forgot-password"
       altAction="Request reset"
     >
-      <ResetPasswordForm />
+      <Suspense fallback={<div className="h-10 animate-pulse bg-border/20" />}>
+        <ResetPasswordForm />
+      </Suspense>
     </AuthShell>
   );
 }

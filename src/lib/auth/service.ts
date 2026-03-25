@@ -280,7 +280,7 @@ export async function completePasswordRecovery(input: CompleteRecoveryInput): Pr
 
   try {
     const account = createAccount();
-    await account.updateRecovery(input.userId, input.secret, input.password, input.confirmPassword);
+    await account.updateRecovery(input.userId, input.secret, input.password);
 
     return {
       ok: true,

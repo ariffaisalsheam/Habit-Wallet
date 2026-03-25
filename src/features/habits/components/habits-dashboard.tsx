@@ -7,6 +7,7 @@ import {
   Moon,
   Pencil,
   Plus,
+  RefreshCw,
   Sparkles,
   Sprout,
   Sun,
@@ -91,7 +92,9 @@ export function HabitsDashboard() {
   const removeHabit = useHabitsStore((state) => state.removeHabit);
   const toggleCompletionForDate = useHabitsStore((state) => state.toggleCompletionForDate);
   const loadFromBackend = useHabitsStore((state) => state.loadFromBackend);
+  const syncPending = useHabitsStore((state) => state.syncPending);
   const syncing = useHabitsStore((state) => state.syncing);
+  const pendingQueueCount = useHabitsStore((state) => state.pendingQueueCount);
   const errorMessage = useHabitsStore((state) => state.errorMessage);
   const clearHabitsError = useHabitsStore((state) => state.clearHabitsError);
 
@@ -220,9 +223,28 @@ export function HabitsDashboard() {
     });
   }
 
+  async function handleSyncNow() {
+    await syncPending();
+  }
+
   return (
     <section className="space-y-4 pb-8 animate-soft-rise">
       {syncing ? <p className="text-xs text-muted-foreground">Syncing habits...</p> : null}
+      {pendingQueueCount > 0 ? (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <p>{pendingQueueCount} habit change(s) queued for cloud sync.</p>
+          <button
+            type="button"
+            onClick={() => {
+              void handleSyncNow();
+            }}
+            disabled={syncing}
+            className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-amber-300 bg-white px-2.5 font-semibold text-amber-900 disabled:opacity-60"
+          >
+            <RefreshCw size={13} /> Sync now
+          </button>
+        </div>
+      ) : null}
       {errorMessage ? <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs text-amber-800">{errorMessage}</p> : null}
 
       <article className="wellness-card animate-breathe relative overflow-hidden rounded-[2rem] p-5">

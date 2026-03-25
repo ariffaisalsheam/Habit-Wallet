@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Pencil, Trash2, Download } from "lucide-react";
+import { Download, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -46,6 +46,8 @@ export function FinanceDashboard() {
   const deleteTransaction = useTransactionsStore((state) => state.deleteTransaction);
   const loadTransactions = useTransactionsStore((state) => state.loadFromBackend);
   const transactionsSyncing = useTransactionsStore((state) => state.syncing);
+  const transactionsPendingQueueCount = useTransactionsStore((state) => state.pendingQueueCount);
+  const syncPendingTransactions = useTransactionsStore((state) => state.syncPending);
   const transactionsError = useTransactionsStore((state) => state.errorMessage);
   const clearTransactionsError = useTransactionsStore((state) => state.clearTransactionsError);
   const budgets = useBudgetsStore((state) => state.budgets);
@@ -53,6 +55,8 @@ export function FinanceDashboard() {
   const deleteBudget = useBudgetsStore((state) => state.deleteBudget);
   const loadBudgets = useBudgetsStore((state) => state.loadFromBackend);
   const budgetsSyncing = useBudgetsStore((state) => state.syncing);
+  const budgetsPendingQueueCount = useBudgetsStore((state) => state.pendingQueueCount);
+  const syncPendingBudgets = useBudgetsStore((state) => state.syncPending);
   const budgetsError = useBudgetsStore((state) => state.errorMessage);
   const clearBudgetsError = useBudgetsStore((state) => state.clearBudgetsError);
 
@@ -87,6 +91,8 @@ export function FinanceDashboard() {
 
   const totals = useMemo(() => getCurrentMonthTotals(transactions), [transactions]);
   const balance = totals.income - totals.expense;
+  const pendingSyncCount = transactionsPendingQueueCount + budgetsPendingQueueCount;
+  const isSyncingAny = transactionsSyncing || budgetsSyncing;
 
   useEffect(() => {
     void loadTransactions();
@@ -175,10 +181,29 @@ export function FinanceDashboard() {
     });
   });
 
+  async function handleSyncNow() {
+    await Promise.allSettled([syncPendingTransactions(), syncPendingBudgets()]);
+  }
+
   return (
     <section className="space-y-4 pb-8">
-      {transactionsSyncing || budgetsSyncing ? (
+      {isSyncingAny ? (
         <p className="text-xs text-muted-foreground">Syncing finance data...</p>
+      ) : null}
+      {pendingSyncCount > 0 ? (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <p>{pendingSyncCount} change(s) queued for cloud sync.</p>
+          <button
+            type="button"
+            onClick={() => {
+              void handleSyncNow();
+            }}
+            disabled={isSyncingAny}
+            className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-amber-300 bg-white px-2.5 font-semibold text-amber-900 disabled:opacity-60"
+          >
+            <RefreshCw size={13} /> Sync now
+          </button>
+        </div>
       ) : null}
       {transactionsError ? <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs text-amber-800">{transactionsError}</p> : null}
       {budgetsError ? <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs text-amber-800">{budgetsError}</p> : null}
