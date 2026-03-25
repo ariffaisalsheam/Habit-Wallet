@@ -6,6 +6,9 @@ declare module "next-pwa" {
     disable?: boolean;
     register?: boolean;
     skipWaiting?: boolean;
+    clientsClaim?: boolean;
+    cleanupOutdatedCaches?: boolean;
+    runtimeCaching?: Array<Record<string, unknown>>;
   };
 
   type WithPWA = (config?: NextConfig) => NextConfig;

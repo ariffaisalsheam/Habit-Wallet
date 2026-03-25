@@ -26,6 +26,9 @@ type TranslationKey =
   | "profile.pageDescription"
   | "profile.premiumHeading"
   | "profile.premiumDescription"
+  | "profile.proHeading"
+  | "profile.proDescription"
+  | "profile.manageCta"
   | "profile.subscriptionCta"
   | "profile.footer"
   | "settings.accountHeading"
@@ -70,6 +73,9 @@ const EN_TRANSLATIONS: Translations = {
   "profile.pageDescription": "Your private space to manage identity, security, and premium configurations.",
   "profile.premiumHeading": "Premium Experience",
   "profile.premiumDescription": "Upgrade to Professional for 90-day insights and PDF exports while keeping your core tracking free forever.",
+  "profile.proHeading": "Professional Active",
+  "profile.proDescription": "Your Professional plan is active. Manage your plan, review billing updates, or renew from the subscription panel.",
+  "profile.manageCta": "Manage Plan",
   "profile.subscriptionCta": "Subscription",
   "profile.footer": "HabitWallet Version 1.0.2 • Secure Cloud Auth",
   "settings.accountHeading": "Account Settings",
@@ -113,6 +119,9 @@ const BN_TRANSLATIONS: Translations = {
   "profile.pageDescription": "পরিচয়, নিরাপত্তা ও প্রিমিয়াম সেটিংস ব্যবস্থাপনার ব্যক্তিগত স্থান।",
   "profile.premiumHeading": "প্রিমিয়াম অভিজ্ঞতা",
   "profile.premiumDescription": "৯০ দিনের ইনসাইটস ও পিডিএফ এক্সপোর্ট পেতে প্রফেশনালে আপগ্রেড করুন, মূল ট্র্যাকিং থাকবে ফ্রি।",
+  "profile.proHeading": "প্রফেশনাল সক্রিয়",
+  "profile.proDescription": "আপনার প্রফেশনাল প্ল্যান সক্রিয় আছে। সাবস্ক্রিপশন প্যানেল থেকে প্ল্যান ম্যানেজ, বিলিং আপডেট দেখুন বা নবায়ন করুন।",
+  "profile.manageCta": "প্ল্যান ম্যানেজ",
   "profile.subscriptionCta": "সাবস্ক্রিপশন",
   "profile.footer": "হ্যাবিটওয়ালেট সংস্করণ ১.০.২ • নিরাপদ ক্লাউড অথ",
   "settings.accountHeading": "অ্যাকাউন্ট সেটিংস",

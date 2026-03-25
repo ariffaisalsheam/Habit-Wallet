@@ -64,23 +64,31 @@ export function AppProviders({ children }: AppProvidersProps) {
     applyInitialLanguage();
 
     const startedAt = Date.now();
+    const minimumBootMs = 280;
+    const maximumBootMs = 1400;
     const messageInterval = window.setInterval(() => {
       setBootMessageIndex((value) => (value + 1) % BOOT_MESSAGES.length);
     }, 850);
 
-    const finishBoot = () => {
+    const clearBoot = () => {
       const elapsed = Date.now() - startedAt;
-      const remaining = Math.max(0, 420 - elapsed);
+      const remaining = Math.max(0, minimumBootMs - elapsed);
       window.setTimeout(() => setBooting(false), remaining);
     };
 
-    const hasRequestIdleCallback =
-      typeof window !== "undefined" && typeof window.requestIdleCallback === "function";
+    const hardStopBootTimeout = window.setTimeout(() => {
+      setBooting(false);
+    }, maximumBootMs);
+
+    const hasRequestIdleCallback = typeof window.requestIdleCallback === "function";
 
     if (hasRequestIdleCallback) {
-      window.requestIdleCallback(finishBoot, { timeout: 900 });
+      const idleId = window.requestIdleCallback(clearBoot, { timeout: 500 });
+      window.setTimeout(() => {
+        window.cancelIdleCallback?.(idleId);
+      }, 700);
     } else {
-      globalThis.setTimeout(finishBoot, 320);
+      globalThis.setTimeout(clearBoot, 150);
     }
 
     const pingTimeout = window.setTimeout(() => {
@@ -140,6 +148,7 @@ export function AppProviders({ children }: AppProvidersProps) {
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
+      window.clearTimeout(hardStopBootTimeout);
       window.clearTimeout(pingTimeout);
       window.clearInterval(messageInterval);
       globalThis.clearInterval(interval);

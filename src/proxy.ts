@@ -7,7 +7,7 @@ function hasPathPrefix(pathname: string, route: string) {
   return pathname === route || pathname.startsWith(`${route}/`);
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get("hw_session")?.value;
   const adminCookie = request.cookies.get("hw_admin")?.value;

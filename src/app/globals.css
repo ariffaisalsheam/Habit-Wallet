@@ -176,6 +176,15 @@ body {
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 
+@keyframes plan-feed-slide {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-50% - 0.5rem));
+  }
+}
+
 .animate-breathe {
   animation: breathe-in 520ms cubic-bezier(0.25, 0.8, 0.25, 1);
 }
@@ -219,6 +228,37 @@ body {
 
 .animate-avatar-pulse {
   animation: avatar-pulse 2s infinite;
+}
+
+.plan-feed-track {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  gap: 1.25rem;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.plan-feed-viewport {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  mask-image: linear-gradient(to right, transparent 0, black 10%, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 10%, black 90%, transparent 100%);
+}
+
+.plan-feed-animated {
+  animation: plan-feed-slide var(--plan-feed-duration, 26s) linear infinite;
+}
+
+.plan-feed-animated:hover,
+.plan-feed-animated:focus-within {
+  animation-play-state: paused;
+}
+
+.plan-feed-item {
+  display: inline-block;
+  padding-right: 1rem;
 }
 
 .premium-tier-badge {
@@ -291,6 +331,7 @@ body {
   .animate-badge-float,
   .animate-premium-float,
   .animate-avatar-pulse,
+  .plan-feed-track,
   .calm-ring {
     animation: none !important;
     transition: none !important;

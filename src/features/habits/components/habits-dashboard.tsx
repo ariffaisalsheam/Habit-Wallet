@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   CloudSun,
   Eraser,
-  Info,
   Moon,
   Pencil,
   Plus,
@@ -94,6 +93,17 @@ function getMoodTone(completionRatio: number) {
   return "Soft Reset";
 }
 
+function pickBySeed<T>(items: readonly T[], seed: string): T {
+  let hash = 0;
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) | 0;
+  }
+
+  const itemIndex = Math.abs(hash) % items.length;
+  return items[itemIndex];
+}
+
 export function HabitsDashboard() {
   const today = new Date().toISOString().slice(0, 10);
   const reflectionKey = `${STORAGE_KEYS.dailyReflection}_${today}`;
@@ -102,10 +112,7 @@ export function HabitsDashboard() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [reflectionDirty, setReflectionDirty] = useState(false);
   const [reflectionSavedAt, setReflectionSavedAt] = useState<string | null>(null);
-  const [reflection, setReflection] = useState(() => {
-    if (typeof window === "undefined") return "";
-    return window.localStorage.getItem(reflectionKey) ?? "";
-  });
+  const [reflection, setReflection] = useState("");
 
   const habits = useHabitsStore((state) => state.habits);
   const completions = useHabitsStore((state) => state.completions);
@@ -182,6 +189,9 @@ export function HabitsDashboard() {
     if (typeof window === "undefined") {
       return;
     }
+
+    const rawPlan = window.localStorage.getItem(reflectionKey) ?? "";
+    setReflection(rawPlan);
 
     const rawSavedAt = window.localStorage.getItem(`${reflectionKey}_saved_at`);
     setReflectionSavedAt(rawSavedAt);
@@ -264,9 +274,9 @@ export function HabitsDashboard() {
   const editingHabit = editingId ? habits.find((habit) => habit.id === editingId) ?? null : null;
 
   const reflectionPrompts = [
-    "One tiny win I will complete today:",
-    "What might distract me, and how will I respond?",
-    "Tonight I want to feel proud because:",
+    "Top 3 must-do actions for today:",
+    "If I get stuck, I will start with this 5-minute action:",
+    "Biggest likely blocker and my fallback plan:",
   ];
 
   function saveReflection() {
@@ -279,7 +289,7 @@ export function HabitsDashboard() {
     window.localStorage.setItem(`${reflectionKey}_saved_at`, savedAt);
     setReflectionSavedAt(savedAt);
     setReflectionDirty(false);
-    pushNotice("success", "Reflection saved.");
+    pushNotice("success", "Action plan saved.");
   }
 
   function clearReflection() {
@@ -315,47 +325,140 @@ export function HabitsDashboard() {
   }
 
   const aiInsight = useMemo(() => {
+    const dominantBlock = (Object.entries(blockGroups) as [DayBlock, HabitItem[]][]).reduce(
+      (top, current) => {
+        if (current[1].length > top[1].length) {
+          return current;
+        }
+
+        return top;
+      },
+      ["morning", [] as HabitItem[]]
+    )[0];
+
+    const seed = `${today}-${habits.length}-${completedToday}-${topStreak}-${focusHabit?.id ?? "none"}-${dominantBlock}`;
+
     if (habits.length === 0) {
       return {
         title: "Start with one anchor habit",
-        suggestion: "Add one 5-minute morning habit first. Consistency beats volume.",
+        suggestion: "Add one 5-minute habit for your first block. Consistency beats complexity.",
+        nextMove: "Create one simple habit and complete it today.",
+        fallback: "Keep scope tiny: one habit, one finish.",
         risk: "low" as const,
       };
     }
 
+    const focusName = focusHabit?.title ?? "your next easiest habit";
+
     if (completionRatio < 0.35) {
+      const title = pickBySeed(
+        [
+          "Execution risk is high right now",
+          "Day is slipping into reactive mode",
+          "You need one fast reset",
+        ],
+        `${seed}-high-title`
+      );
+
+      const suggestion = pickBySeed(
+        [
+          `Do ${focusName} in the next 10 minutes, then reassess your plan.`,
+          `Shrink scope: pick one must-do habit and protect a 15-minute focus window.`,
+          "Ignore backlog for now. Lock one quick completion to restart momentum.",
+        ],
+        `${seed}-high-suggestion`
+      );
+
       return {
-        title: "High drop-off risk today",
-        suggestion:
-          "Pick only one must-do habit and commit to a tiny first step in the next 30 minutes.",
+        title,
+        suggestion,
+        nextMove: `Open ${dayBlockMeta[dominantBlock].title} block and finish one 5-minute action now.`,
+        fallback: "If interrupted, complete the easiest 2-minute version immediately.",
         risk: "high" as const,
       };
     }
 
     if (completionRatio < 0.7) {
+      const title = pickBySeed(
+        [
+          "Momentum is building",
+          "You are in recovery flow",
+          "Progress is stable but fragile",
+        ],
+        `${seed}-medium-title`
+      );
+
+      const suggestion = pickBySeed(
+        [
+          `Finish ${focusName} before switching context to lock this momentum.`,
+          "Batch two short habits back-to-back to increase confidence and speed.",
+          "Protect your next block from distractions and clear one meaningful task.",
+        ],
+        `${seed}-medium-suggestion`
+      );
+
       return {
-        title: "Momentum is building",
-        suggestion: "You are in progress. Complete one more quick habit to lock in a positive day.",
+        title,
+        suggestion,
+        nextMove: `Complete one ${dominantBlock} habit before your next interruption.`,
+        fallback: "If momentum drops, do one quick habit before checking anything else.",
         risk: "medium" as const,
       };
     }
 
+    const title = pickBySeed(
+      [
+        "You are in strong flow",
+        "Consistency mode is active",
+        "Execution quality is high",
+      ],
+      `${seed}-low-title`
+    );
+
+    const suggestion = pickBySeed(
+      [
+        "Maintain quality by scheduling your next habit before this block ends.",
+        "Use this momentum to finish one meaningful habit you have been delaying.",
+        "Avoid overloading. Keep the same pace and close your final key habit cleanly.",
+      ],
+      `${seed}-low-suggestion`
+    );
+
     return {
-      title: "You are in strong flow",
-      suggestion: "Protect this streak by scheduling your next habit before the current block ends.",
+      title,
+      suggestion,
+      nextMove: `Protect your streak: finish ${focusName} before ending this session.`,
+      fallback: "If the day shifts, preserve quality by completing one meaningful habit.",
       risk: "low" as const,
     };
-  }, [completionRatio, habits.length]);
+  }, [blockGroups, completedToday, completionRatio, focusHabit, habits.length, today, topStreak]);
+
+  const tickerContent = useMemo(() => {
+    if (!reflection.trim()) {
+      return "";
+    }
+
+    return reflection
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .join("  •  ");
+  }, [reflection]);
+
+  const hasTickerContent = tickerContent.length > 0;
+  const shouldAnimateTicker = tickerContent.length > 48;
+  const tickerDurationSeconds = Math.min(42, Math.max(18, Math.round(tickerContent.length * 0.42)));
 
   function applyAiDraft() {
-    const focusLine = focusHabit ? `Primary focus: ${focusHabit.title}.` : "Primary focus: complete one quick win habit.";
-    const plan = `${focusLine}\n\nAI Coach:\n${aiInsight.suggestion}\n\nBlock commitment: I will finish at least one ${
-      completionRatio < 0.5 ? "small" : "meaningful"
-    } habit in my current time block.`;
+    const focusLine = focusHabit ? `Focus: ${focusHabit.title}` : "Focus: one quick win habit";
+    const statusLine = `Status: ${completedToday}/${habits.length} done (${Math.round(completionRatio * 100)}%)`;
+    const nextLine = `Next: ${aiInsight.nextMove}`;
+    const fallbackLine = `Fallback: ${aiInsight.fallback}`;
+    const plan = `${focusLine}\n${statusLine}\n${nextLine}\n${fallbackLine}`;
 
     setReflection(plan);
     setReflectionDirty(true);
-    pushNotice("success", "AI reflection draft generated.");
+    pushNotice("success", "AI action plan generated.");
   }
 
   useEffect(() => {
@@ -419,11 +522,37 @@ export function HabitsDashboard() {
         ))}
       </div>
 
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between gap-3">
+        {hasTickerContent ? (
+          <div className="min-w-0 flex-1 rounded-2xl border border-border/70 bg-surface-elevated px-3 py-2">
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-background px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+                <Sparkles size={10} /> Plan Feed
+              </span>
+            </div>
+
+            <div className="plan-feed-viewport">
+              <div
+                className={`plan-feed-track ${shouldAnimateTicker ? "plan-feed-animated" : ""}`}
+                style={{ ["--plan-feed-duration" as string]: `${tickerDurationSeconds}s` }}
+              >
+                <span className="plan-feed-item text-xs font-medium text-foreground">{tickerContent}</span>
+                {shouldAnimateTicker ? (
+                  <span aria-hidden="true" className="plan-feed-item text-xs font-medium text-foreground">
+                    {"  •  "}
+                    {tickerContent}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div aria-hidden="true" className="min-w-0 flex-1" />
+        )}
         <button
           type="button"
           onClick={openAddModal}
-          className="inline-flex min-h-10 items-center gap-1 rounded-full bg-primary/90 px-4 text-sm font-semibold text-white shadow-[var(--card-shadow)] transition hover:-translate-y-0.5 hover:bg-primary"
+          className="inline-flex min-h-11 items-center gap-1 rounded-full bg-primary/90 px-4 text-sm font-semibold text-white shadow-[var(--card-shadow)] transition hover:-translate-y-0.5 hover:bg-primary"
         >
           <Plus size={14} /> Add habit
         </button>
@@ -630,9 +759,9 @@ export function HabitsDashboard() {
 
             <div className="relative z-10 flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg font-semibold text-foreground">Reflection Studio</h3>
+                <h3 className="text-lg font-semibold text-foreground">Daily Action Plan</h3>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  Build a short, behavior-aware daily plan with AI guidance.
+                  Turn today&apos;s habit status into a practical plan you can execute.
                 </p>
               </div>
               <span
@@ -667,58 +796,35 @@ export function HabitsDashboard() {
               </div>
             </div>
 
-            <div
-              className={`relative z-10 mt-3 rounded-2xl border p-3 ${
-                aiInsight.risk === "high"
-                  ? "border-red-300 bg-red-50 text-red-900 dark:border-red-800/50 dark:bg-red-900/20 dark:text-red-200"
-                  : aiInsight.risk === "medium"
-                    ? "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800/50 dark:bg-amber-900/20 dark:text-amber-200"
-                    : "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:text-emerald-200"
-              }`}
-            >
+            <div className="relative z-10 mt-3 rounded-2xl border border-border/70 bg-surface-elevated p-3 text-foreground">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <p className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide">
                     <Bot size={13} /> AI Coach
                   </p>
-                  <span className="relative inline-flex items-center">
-                    <button
-                      type="button"
-                      aria-label="About Reflection Studio"
-                      className="group inline-flex h-5 w-5 items-center justify-center rounded-full border border-current/40 bg-white/70 dark:bg-black/25"
-                    >
-                      <Info size={12} />
-                      <span
-                        role="tooltip"
-                        className="pointer-events-none absolute left-1/2 top-[calc(100%+6px)] z-10 hidden w-56 -translate-x-1/2 rounded-lg border border-border/70 bg-surface-elevated px-2 py-1.5 text-[10px] font-medium text-foreground shadow-[var(--soft-shadow)] group-hover:block group-focus-visible:block"
-                      >
-                        This card analyzes today&apos;s habits and drafts a focused reflection with one practical next step.
-                      </span>
-                    </button>
-                  </span>
                 </div>
-                <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide dark:bg-black/25">
-                  {aiInsight.risk} risk
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                  {aiInsight.risk} priority
                 </span>
               </div>
 
               <p className="mt-2 text-sm font-semibold">{aiInsight.title}</p>
-              <p className="mt-1 text-xs leading-relaxed">{aiInsight.suggestion}</p>
-              <div className="mt-2 rounded-xl border border-current/25 bg-white/55 px-2.5 py-2 text-[11px] leading-relaxed dark:bg-black/20">
-                Recommended next move: {completionRatio < 0.5 ? "Finish one 5-minute habit now" : "Close one meaningful habit in this block"}.
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{aiInsight.suggestion}</p>
+              <div className="mt-2 rounded-xl border border-border/60 bg-background/70 px-2.5 py-2 text-[11px] leading-relaxed text-foreground">
+                Next move: {aiInsight.nextMove}
               </div>
               <button
                 type="button"
                 onClick={applyAiDraft}
-                className="mt-3 inline-flex min-h-9 items-center gap-1 rounded-full border border-current/40 bg-white/70 px-3 text-xs font-semibold transition hover:bg-white dark:bg-black/25 dark:hover:bg-black/35"
+                className="mt-3 inline-flex min-h-9 items-center gap-1 rounded-full border border-border bg-background px-3 text-xs font-semibold text-foreground transition hover:border-primary/50 hover:bg-primary/10"
               >
-                <Bot size={12} /> Generate reflection draft
+                <Bot size={12} /> Generate action plan
               </button>
             </div>
 
             <div className="relative z-10 mt-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Guided Prompts</p>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick Plan Prompts</p>
+              <div className="mt-2 grid gap-2">
                 {reflectionPrompts.map((prompt) => (
                   <button
                     key={prompt}
@@ -733,16 +839,16 @@ export function HabitsDashboard() {
             </div>
 
             <div className="relative z-10 mt-3 rounded-2xl border border-border/70 bg-surface-elevated p-3">
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Today&apos;s Reflection</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Today&apos;s Action Plan</label>
               <textarea
                 value={reflection}
                 onChange={(event) => {
                   setReflection(event.target.value);
                   setReflectionDirty(true);
                 }}
-                rows={7}
+                rows={5}
                 className="mt-2 w-full rounded-2xl border border-border/70 bg-surface px-3 py-2 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-accent"
-                placeholder="Write your plan: first action, likely obstacle, and backup action if the day gets busy."
+                placeholder="Write your plan: first step, priority order, blocker response, and one non-negotiable finish line."
               />
 
               <div className="mt-3 flex items-center justify-between gap-2">
@@ -761,7 +867,7 @@ export function HabitsDashboard() {
                     disabled={!reflectionDirty && hasReflection}
                     className="inline-flex min-h-9 items-center gap-1 rounded-full bg-primary/90 px-3 text-xs font-semibold text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-55"
                   >
-                    <BookmarkCheck size={12} /> Save reflection
+                    <BookmarkCheck size={12} /> Save plan
                   </button>
                 </div>
               </div>

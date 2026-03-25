@@ -13,7 +13,6 @@ import {
 } from "@/lib/profile/service";
 import { User, Phone, Globe, Languages, Save, Loader2 } from "lucide-react";
 import { SubscriptionBadge } from "@/features/subscription/components/subscription-badge";
-import { getStoredUserSession } from "@/lib/storage/session";
 import {
   getStoredAppLanguage,
   setStoredAppLanguage,
@@ -21,6 +20,7 @@ import {
   type AppLanguage,
 } from "@/lib/i18n/language";
 import { t } from "@/lib/i18n/translations";
+import { getStoredUserSession, USER_SESSION_EVENT } from "@/lib/storage/session";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -31,17 +31,26 @@ const profileSchema = z.object({
 
 type ProfileValues = z.infer<typeof profileSchema>;
 
-export function ProfileSettingsCard() {
-  const session = getStoredUserSession();
-  const cachedProfile = session ? getCachedUserProfile(session.user_id) : null;
+function subscribeToSession(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
 
-  const [loading, setLoading] = useState(!cachedProfile);
-  const [profile, setProfile] = useState<UserProfile | null>(cachedProfile);
-  const [summary, setSummary] = useState<{ tier: "free" | "pro"; endDate: string | null } | null>(
-    cachedProfile
-      ? { tier: cachedProfile.subscriptionTier, endDate: cachedProfile.subscriptionEndDate }
-      : null
-  );
+  window.addEventListener(USER_SESSION_EVENT, onStoreChange);
+  window.addEventListener("storage", onStoreChange);
+
+  return () => {
+    window.removeEventListener(USER_SESSION_EVENT, onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
+export function ProfileSettingsCard() {
+  const session = useSyncExternalStore(subscribeToSession, getStoredUserSession, () => null);
+
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [summary, setSummary] = useState<{ tier: "free" | "pro"; endDate: string | null } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const {
@@ -53,10 +62,10 @@ export function ProfileSettingsCard() {
   } = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      name: cachedProfile?.name ?? "",
-      phone: cachedProfile?.phone ?? "",
-      country: cachedProfile?.country ?? "Bangladesh",
-      language: cachedProfile?.language ?? "en",
+      name: "",
+      phone: "",
+      country: "Bangladesh",
+      language: "en",
     },
   });
   const language = useSyncExternalStore<AppLanguage>(
@@ -77,7 +86,26 @@ export function ProfileSettingsCard() {
   }, [language, selectedLanguage]);
 
   useEffect(() => {
+    const userId = session?.user_id;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
     let mounted = true;
+
+    const cached = getCachedUserProfile(userId);
+    if (cached) {
+      reset({
+        name: cached.name,
+        phone: cached.phone,
+        country: cached.country,
+        language: cached.language,
+      });
+      setProfile(cached);
+      setSummary({ tier: cached.subscriptionTier, endDate: cached.subscriptionEndDate });
+      setLoading(false);
+    }
 
     async function loadProfile() {
       try {
@@ -104,7 +132,7 @@ export function ProfileSettingsCard() {
 
     void loadProfile();
     return () => { mounted = false; };
-  }, [reset]);
+  }, [reset, session?.user_id]);
 
   const onSubmit = handleSubmit(async (values) => {
     const payload: UpdateUserProfileInput = {
