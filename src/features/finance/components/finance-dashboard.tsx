@@ -42,6 +42,7 @@ export function FinanceDashboard() {
   const currentDate = new Date().toISOString().slice(0, 10);
   const currentMonth = currentDate.slice(0, 7);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [subscriptionTier, setSubscriptionTier] = useState<"free" | "pro">("free");
   const [upgradeNotice, setUpgradeNotice] = useState<string | null>(null);
   const transactions = useTransactionsStore((state) => state.transactions);
@@ -140,6 +141,12 @@ export function FinanceDashboard() {
     return () => window.clearTimeout(timer);
   }, [upgradeNotice]);
 
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(null), 2200);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
+
   const monthBudgets = budgets.filter((budget) => budget.monthYear === currentMonth);
 
   const categorySpending = transactions.reduce<Record<string, number>>((acc, transaction) => {
@@ -157,6 +164,8 @@ export function FinanceDashboard() {
   }, {});
 
   const onSubmit = handleSubmit(async (values) => {
+    setSuccessMessage(null);
+
     const payload: TransactionInput = {
       type: values.type,
       category: values.category.trim(),
@@ -168,8 +177,10 @@ export function FinanceDashboard() {
     if (editingId) {
       await updateTransaction(editingId, payload);
       setEditingId(null);
+      setSuccessMessage("Transaction updated successfully.");
     } else {
       await addTransaction(payload);
+      setSuccessMessage("Transaction added successfully.");
     }
 
     reset({
@@ -198,6 +209,8 @@ export function FinanceDashboard() {
   }
 
   const onSubmitBudget = handleSubmitBudget(async (values) => {
+    setSuccessMessage(null);
+
     await upsertBudget({
       monthYear: currentMonth,
       category: values.category.trim(),
@@ -208,6 +221,8 @@ export function FinanceDashboard() {
       category: "",
       limitAmount: 0,
     });
+
+    setSuccessMessage("Budget saved successfully.");
   });
 
   async function handleSyncNow() {
@@ -236,6 +251,9 @@ export function FinanceDashboard() {
       ) : null}
       {transactionsError ? <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs text-amber-800">{transactionsError}</p> : null}
       {budgetsError ? <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs text-amber-800">{budgetsError}</p> : null}
+      {successMessage ? (
+        <p className="rounded-xl bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-800">{successMessage}</p>
+      ) : null}
 
       <article className="grid grid-cols-3 gap-2 rounded-3xl border border-border bg-surface p-3">
         <div className="rounded-2xl bg-primary/10 p-2">

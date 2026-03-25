@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import clsx from "clsx";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useTransactionsStore } from "@/features/finance/store/use-transactions-store";
@@ -32,6 +32,18 @@ export function QuickAddPanel() {
   const today = new Date().toISOString().slice(0, 10);
   const [mode, setMode] = useState<"transaction" | "habit">("transaction");
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!message) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setMessage(null);
+    }, 2200);
+
+    return () => window.clearTimeout(timer);
+  }, [message]);
 
   const addTransaction = useTransactionsStore((state) => state.addTransaction);
   const addHabit = useHabitsStore((state) => state.addHabit);

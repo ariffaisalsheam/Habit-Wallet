@@ -80,6 +80,7 @@ export function HabitsDashboard() {
   const reflectionKey = `${STORAGE_KEYS.dailyReflection}_${today}`;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [reflection, setReflection] = useState(() => {
     if (typeof window === "undefined") return "";
     return window.localStorage.getItem(reflectionKey) ?? "";
@@ -176,7 +177,19 @@ export function HabitsDashboard() {
     return () => window.clearTimeout(timer);
   }, [clearHabitsError, errorMessage]);
 
+  useEffect(() => {
+    if (!successMessage) return;
+
+    const timer = window.setTimeout(() => {
+      setSuccessMessage(null);
+    }, 2200);
+
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
+
   const onSubmit = handleSubmit(async (values) => {
+    setSuccessMessage(null);
+
     const payload: HabitInput = {
       title: values.title.trim(),
       category: values.category.trim(),
@@ -190,8 +203,10 @@ export function HabitsDashboard() {
       await updateHabit(editingId, payload);
       setEditingId(null);
       setShowForm(false);
+      setSuccessMessage("Habit updated successfully.");
     } else {
       await addHabit(payload);
+      setSuccessMessage("Habit added successfully.");
     }
 
     reset({
@@ -246,6 +261,9 @@ export function HabitsDashboard() {
         </div>
       ) : null}
       {errorMessage ? <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs text-amber-800">{errorMessage}</p> : null}
+      {successMessage ? (
+        <p className="rounded-xl bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-800">{successMessage}</p>
+      ) : null}
 
       <article className="wellness-card animate-breathe relative overflow-hidden rounded-[2rem] p-5">
         <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-accent/15 blur-2xl" />
