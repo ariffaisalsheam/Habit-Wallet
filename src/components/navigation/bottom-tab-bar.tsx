@@ -13,7 +13,10 @@ export function BottomTabBar() {
       aria-label="Primary"
       className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/70 bg-surface/92 px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 backdrop-blur md:hidden"
     >
-      <ul className="mx-auto grid w-full max-w-md grid-cols-4 gap-2">
+      <ul
+        className="mx-auto grid w-full max-w-lg gap-2"
+        style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
+      >
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;

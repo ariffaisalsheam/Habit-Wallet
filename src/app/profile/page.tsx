@@ -3,7 +3,7 @@ import { ProfileAuthCard } from "@/components/auth/profile-auth-card";
 
 export default function ProfilePage() {
   return (
-    <MobileAppShell>
+    <MobileAppShell title="Profile">
       <ProfileAuthCard />
     </MobileAppShell>
   );
