@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -24,6 +24,7 @@ type RegisterValues = z.infer<typeof registerSchema>;
 
 export function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [serverMessage, setServerMessage] = useState<string | null>(null);
 
   const {
@@ -54,7 +55,10 @@ export function RegisterForm() {
       return;
     }
 
-    router.push("/profile");
+    const next = searchParams.get("next");
+    const destination = next && next.startsWith("/") ? next : "/profile";
+
+    router.push(destination);
     router.refresh();
   });
 

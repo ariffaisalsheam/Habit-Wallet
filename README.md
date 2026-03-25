@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HabitWallet Web
 
-## Getting Started
+HabitWallet is a mobile-first PWA for personal finance and habit tracking, tailored for Bangladeshi users.
 
-First, run the development server:
+## Stack
+
+- Next.js App Router + TypeScript
+- Tailwind CSS
+- Appwrite (Auth + Database)
+- Zustand local-first state with backend sync
+
+## Local Development
+
+Run from the `web` folder:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+App will run at `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy `.env.example` to `.env.local` and fill required Appwrite values.
 
-## Learn More
+```bash
+cp .env.example .env.local
+```
 
-To learn more about Next.js, take a look at the following resources:
+For full Appwrite collection schema and setup steps, see:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `APPWRITE_SETUP.md`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Implemented Backend Flows
 
-## Deploy on Vercel
+- Auth session with local guard cookies for route gating
+- Protected routes: `/profile`, `/subscription`, `/admin`
+- Profile load/create/update via Appwrite collection
+- Subscription request and admin review via Appwrite
+- Admin approval/rejection audit logging
+- Habits + completions backend sync
+- Finance transactions + budgets backend sync
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Notes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Admin access is label-based (`admin` label on Appwrite user)
+- Stores remain local-first and fall back to local persistence if backend sync fails

@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -17,6 +17,7 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [serverMessage, setServerMessage] = useState<string | null>(null);
 
   const {
@@ -40,7 +41,10 @@ export function LoginForm() {
       return;
     }
 
-    router.push("/profile");
+    const next = searchParams.get("next");
+    const destination = next && next.startsWith("/") ? next : "/profile";
+
+    router.push(destination);
     router.refresh();
   });
 
@@ -69,6 +73,12 @@ export function LoginForm() {
         />
         {errors.password ? <span className="mt-1 block text-xs text-red-600">{errors.password.message}</span> : null}
       </label>
+
+      <div className="text-right">
+        <Link href="/auth/forgot-password" className="text-xs font-medium text-primary underline-offset-4 hover:underline">
+          Forgot password?
+        </Link>
+      </div>
 
       {serverMessage ? <p className="rounded-xl bg-red-100 px-3 py-2 text-sm text-red-700">{serverMessage}</p> : null}
 

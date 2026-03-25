@@ -90,6 +90,10 @@ export function HabitsDashboard() {
   const updateHabit = useHabitsStore((state) => state.updateHabit);
   const removeHabit = useHabitsStore((state) => state.removeHabit);
   const toggleCompletionForDate = useHabitsStore((state) => state.toggleCompletionForDate);
+  const loadFromBackend = useHabitsStore((state) => state.loadFromBackend);
+  const syncing = useHabitsStore((state) => state.syncing);
+  const errorMessage = useHabitsStore((state) => state.errorMessage);
+  const clearHabitsError = useHabitsStore((state) => state.clearHabitsError);
 
   const {
     register,
@@ -155,6 +159,20 @@ export function HabitsDashboard() {
     window.localStorage.setItem(reflectionKey, reflection);
   }, [reflection, reflectionKey]);
 
+  useEffect(() => {
+    void loadFromBackend();
+  }, [loadFromBackend]);
+
+  useEffect(() => {
+    if (!errorMessage) return;
+
+    const timer = window.setTimeout(() => {
+      clearHabitsError();
+    }, 4500);
+
+    return () => window.clearTimeout(timer);
+  }, [clearHabitsError, errorMessage]);
+
   const onSubmit = handleSubmit(async (values) => {
     const payload: HabitInput = {
       title: values.title.trim(),
@@ -166,11 +184,11 @@ export function HabitsDashboard() {
     };
 
     if (editingId) {
-      updateHabit(editingId, payload);
+      await updateHabit(editingId, payload);
       setEditingId(null);
       setShowForm(false);
     } else {
-      addHabit(payload);
+      await addHabit(payload);
     }
 
     reset({
@@ -204,6 +222,9 @@ export function HabitsDashboard() {
 
   return (
     <section className="space-y-4 pb-8 animate-soft-rise">
+      {syncing ? <p className="text-xs text-muted-foreground">Syncing habits...</p> : null}
+      {errorMessage ? <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs text-amber-800">{errorMessage}</p> : null}
+
       <article className="wellness-card animate-breathe relative overflow-hidden rounded-[2rem] p-5">
         <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-accent/15 blur-2xl" />
         <div className="absolute -left-6 bottom-0 h-24 w-24 rounded-full bg-primary/15 blur-2xl" />
@@ -331,7 +352,9 @@ export function HabitsDashboard() {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => removeHabit(habit.id)}
+                                  onClick={() => {
+                                    void removeHabit(habit.id);
+                                  }}
                                   className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-full border border-border/70 bg-surface text-foreground"
                                   aria-label="Delete habit"
                                 >
@@ -346,7 +369,9 @@ export function HabitsDashboard() {
                               </span>
                               <button
                                 type="button"
-                                onClick={() => toggleCompletionForDate(habit.id, today)}
+                                onClick={() => {
+                                  void toggleCompletionForDate(habit.id, today);
+                                }}
                                 className={
                                   completed
                                     ? "soft-glow-active inline-flex min-h-10 items-center gap-1 rounded-full bg-primary/20 px-3 text-xs font-semibold text-foreground"

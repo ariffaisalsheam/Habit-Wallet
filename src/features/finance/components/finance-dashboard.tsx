@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pencil, Trash2, Download } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useBudgetsStore } from "@/features/finance/store/use-budgets-store";
@@ -44,9 +44,17 @@ export function FinanceDashboard() {
   const addTransaction = useTransactionsStore((state) => state.addTransaction);
   const updateTransaction = useTransactionsStore((state) => state.updateTransaction);
   const deleteTransaction = useTransactionsStore((state) => state.deleteTransaction);
+  const loadTransactions = useTransactionsStore((state) => state.loadFromBackend);
+  const transactionsSyncing = useTransactionsStore((state) => state.syncing);
+  const transactionsError = useTransactionsStore((state) => state.errorMessage);
+  const clearTransactionsError = useTransactionsStore((state) => state.clearTransactionsError);
   const budgets = useBudgetsStore((state) => state.budgets);
   const upsertBudget = useBudgetsStore((state) => state.upsertBudget);
   const deleteBudget = useBudgetsStore((state) => state.deleteBudget);
+  const loadBudgets = useBudgetsStore((state) => state.loadFromBackend);
+  const budgetsSyncing = useBudgetsStore((state) => state.syncing);
+  const budgetsError = useBudgetsStore((state) => state.errorMessage);
+  const clearBudgetsError = useBudgetsStore((state) => state.clearBudgetsError);
 
   const {
     register,
@@ -80,6 +88,23 @@ export function FinanceDashboard() {
   const totals = useMemo(() => getCurrentMonthTotals(transactions), [transactions]);
   const balance = totals.income - totals.expense;
 
+  useEffect(() => {
+    void loadTransactions();
+    void loadBudgets();
+  }, [loadBudgets, loadTransactions]);
+
+  useEffect(() => {
+    if (!transactionsError) return;
+    const timer = window.setTimeout(() => clearTransactionsError(), 4500);
+    return () => window.clearTimeout(timer);
+  }, [clearTransactionsError, transactionsError]);
+
+  useEffect(() => {
+    if (!budgetsError) return;
+    const timer = window.setTimeout(() => clearBudgetsError(), 4500);
+    return () => window.clearTimeout(timer);
+  }, [budgetsError, clearBudgetsError]);
+
   const monthBudgets = budgets.filter((budget) => budget.monthYear === currentMonth);
 
   const categorySpending = transactions.reduce<Record<string, number>>((acc, transaction) => {
@@ -106,10 +131,10 @@ export function FinanceDashboard() {
     };
 
     if (editingId) {
-      updateTransaction(editingId, payload);
+      await updateTransaction(editingId, payload);
       setEditingId(null);
     } else {
-      addTransaction(payload);
+      await addTransaction(payload);
     }
 
     reset({
@@ -138,7 +163,7 @@ export function FinanceDashboard() {
   }
 
   const onSubmitBudget = handleSubmitBudget(async (values) => {
-    upsertBudget({
+    await upsertBudget({
       monthYear: currentMonth,
       category: values.category.trim(),
       limitAmount: Number(values.limitAmount),
@@ -152,6 +177,12 @@ export function FinanceDashboard() {
 
   return (
     <section className="space-y-4 pb-8">
+      {transactionsSyncing || budgetsSyncing ? (
+        <p className="text-xs text-muted-foreground">Syncing finance data...</p>
+      ) : null}
+      {transactionsError ? <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs text-amber-800">{transactionsError}</p> : null}
+      {budgetsError ? <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs text-amber-800">{budgetsError}</p> : null}
+
       <article className="grid grid-cols-3 gap-2 rounded-3xl border border-border bg-surface p-3">
         <div className="rounded-2xl bg-primary/10 p-2">
           <p className="text-xs text-muted-foreground">Income</p>
@@ -323,7 +354,9 @@ export function FinanceDashboard() {
 
                     <button
                       type="button"
-                      onClick={() => deleteBudget(budget.id)}
+                      onClick={() => {
+                        void deleteBudget(budget.id);
+                      }}
                       className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-lg border border-border text-foreground"
                       aria-label="Delete budget"
                     >
@@ -386,7 +419,9 @@ export function FinanceDashboard() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => deleteTransaction(transaction.id)}
+                        onClick={() => {
+                          void deleteTransaction(transaction.id);
+                        }}
                         className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-lg border border-border text-foreground"
                         aria-label="Delete transaction"
                       >

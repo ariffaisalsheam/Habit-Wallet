@@ -2,15 +2,58 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { logoutUser } from "@/lib/auth/service";
-import { getStoredUserSession, type LocalUserSession } from "@/lib/storage/session";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { logoutUser, refreshStoredSession } from "@/lib/auth/service";
+import { USER_SESSION_EVENT, getStoredUserSession } from "@/lib/storage/session";
+
+function subscribeToSession(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === "hft_user_session") {
+      onStoreChange();
+    }
+  };
+
+  const onSessionEvent = () => {
+    onStoreChange();
+  };
+
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(USER_SESSION_EVENT, onSessionEvent);
+
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(USER_SESSION_EVENT, onSessionEvent);
+  };
+}
 
 export function ProfileAuthCard() {
   const router = useRouter();
-  const [session, setSession] = useState<LocalUserSession | null>(() => getStoredUserSession());
+  const session = useSyncExternalStore(subscribeToSession, getStoredUserSession, () => null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function refresh() {
+      const result = await refreshStoredSession();
+      if (!mounted) return;
+
+      if (!result.ok) {
+        setMessage(result.message ?? "Session expired. Please sign in again.");
+      }
+    }
+
+    void refresh();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   async function handleLogout() {
     setBusy(true);
@@ -24,7 +67,6 @@ export function ProfileAuthCard() {
       return;
     }
 
-    setSession(null);
     setBusy(false);
     setMessage("Signed out successfully.");
     router.refresh();
@@ -41,6 +83,13 @@ export function ProfileAuthCard() {
           <p className="text-sm text-muted-foreground">Logged in as</p>
           <p className="text-base font-semibold text-foreground">{session?.name || "Unnamed User"}</p>
           <p className="text-sm text-muted-foreground">{session?.email}</p>
+          {session?.email_verified ? (
+            <p className="rounded-xl bg-green-100 px-3 py-2 text-xs text-green-800">Email verified</p>
+          ) : (
+            <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs text-amber-800">
+              Email not verified. <Link href="/auth/verify-email" className="font-semibold underline">Verify now</Link>
+            </p>
+          )}
           <button
             type="button"
             onClick={handleLogout}
