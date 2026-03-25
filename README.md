@@ -64,4 +64,4 @@ For full Appwrite collection schema and setup steps, see:
 	- Output directory: `.next`
 3. Add all required `NEXT_PUBLIC_*` variables from `.env.local` into Appwrite Site variables.
 4. Add custom domain `habitwallet.afsbd.tech` in site domain settings and complete DNS verification.
-5. Trigger deployment from the `main` branch.
+5. Trigger deployment from the `master` branch (or switch your repository default to `main` and deploy from `main`).
