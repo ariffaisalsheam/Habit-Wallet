@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ReactNode } from "react";
 
 type AuthShellProps = {
@@ -21,7 +22,17 @@ export function AuthShell({
   return (
     <div className="app-noise flex min-h-dvh items-center justify-center p-4">
       <section className="w-full max-w-md rounded-3xl border border-border bg-surface p-5 shadow-[0_22px_60px_-35px_rgba(0,0,0,0.35)]">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Habit & Finance</p>
+        <div className="mb-2 flex items-center gap-2">
+          <Image
+            src="/logo/android-chrome-512x512.png"
+            alt="HabitWallet logo"
+            width={30}
+            height={30}
+            className="rounded-md"
+            priority
+          />
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">HabitWallet</p>
+        </div>
         <h1 className="mt-2 font-mono text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
 

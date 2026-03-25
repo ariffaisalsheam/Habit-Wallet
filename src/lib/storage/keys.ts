@@ -3,6 +3,8 @@ export const STORAGE_KEYS = {
   theme: "hft_theme",
   habits: "hft_habits",
   transactions: "hft_transactions",
+  budgets: "hft_budgets",
+  dailyReflection: "hft_daily_reflection",
   syncQueue: "hft_sync_queue",
   lastSync: "hft_last_sync",
 } as const;

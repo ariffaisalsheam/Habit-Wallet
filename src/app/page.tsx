@@ -1,10 +1,10 @@
 import { MobileAppShell } from "@/components/layout/mobile-app-shell";
-import { StarterOverview } from "@/components/starter-overview";
+import { HabitsDashboard } from "@/features/habits/components/habits-dashboard";
 
 export default function Home() {
   return (
-    <MobileAppShell>
-      <StarterOverview />
+    <MobileAppShell title="Habits">
+      <HabitsDashboard />
     </MobileAppShell>
   );
 }
