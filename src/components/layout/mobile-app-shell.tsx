@@ -122,10 +122,10 @@ export function MobileAppShell({ children, title = "Dashboard" }: MobileAppShell
   const displayTitle = translateTitle(language, title);
   const pendingLabel = pendingTotal === 1 ? (language === "bn" ? "পরিবর্তন" : "change") : language === "bn" ? "পরিবর্তন" : "changes";
 
-  const syncStatusText = !isOnline
-    ? t(language, "sync.offline")
-    : !isPro
+  const syncStatusText = !isPro
       ? t(language, "sync.locked")
+      : !isOnline
+        ? t(language, "sync.localMode")
       : syncingAny
         ? t(language, "sync.syncing")
         : pendingTotal > 0
@@ -197,10 +197,10 @@ export function MobileAppShell({ children, title = "Dashboard" }: MobileAppShell
 
             <div
               className={`mt-2.5 rounded-xl border border-border/60 bg-background/70 px-2.5 py-1.5 text-[10px] font-semibold ${
-                !isOnline
-                  ? "text-amber-700 dark:text-amber-400"
-                  : !isPro
+                !isPro
                     ? "text-muted-foreground"
+                    : !isOnline
+                      ? "text-muted-foreground"
                     : syncingAny
                       ? "animate-pulse text-primary"
                       : "text-emerald-700 dark:text-emerald-400"
@@ -208,7 +208,7 @@ export function MobileAppShell({ children, title = "Dashboard" }: MobileAppShell
             >
               <div className="flex items-center justify-between gap-2">
                 <span>{syncStatusText}</span>
-                {isOnline && !isPro && session ? (
+                {!isPro && session ? (
                   <Link
                     href="/subscription"
                     className="rounded-md bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/25"

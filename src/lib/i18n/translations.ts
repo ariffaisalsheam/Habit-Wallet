@@ -9,6 +9,7 @@ type TranslationKey =
   | "shell.primary"
   | "shell.brand"
   | "sync.offline"
+  | "sync.localMode"
   | "sync.locked"
   | "sync.syncing"
   | "sync.pending"
@@ -52,6 +53,7 @@ const EN_TRANSLATIONS: Translations = {
   "shell.primary": "Primary",
   "shell.brand": "HabitWallet",
   "sync.offline": "Offline mode active",
+  "sync.localMode": "Local mode active (changes are saved)",
   "sync.locked": "Cloud sync locked (Professional feature)",
   "sync.syncing": "Syncing...",
   "sync.pending": "{{count}} {{label}} pending sync",
@@ -94,6 +96,7 @@ const BN_TRANSLATIONS: Translations = {
   "shell.primary": "প্রধান নেভিগেশন",
   "shell.brand": "হ্যাবিটওয়ালেট",
   "sync.offline": "অফলাইন মোড চালু আছে",
+  "sync.localMode": "লোকাল মোড চালু (পরিবর্তন সেভ হচ্ছে)",
   "sync.locked": "ক্লাউড সিঙ্ক লকড (প্রফেশনাল ফিচার)",
   "sync.syncing": "সিঙ্ক হচ্ছে...",
   "sync.pending": "{{count}} {{label}} সিঙ্ক বাকি",

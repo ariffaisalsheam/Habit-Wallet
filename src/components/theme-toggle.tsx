@@ -14,7 +14,7 @@ export function ThemeToggle() {
   const isDark = theme === "dark";
 
   function toggleTheme() {
-    const nextTheme = isDark ? "light" : "dark";
+    const nextTheme = getCurrentTheme() === "dark" ? "light" : "dark";
     applyTheme(nextTheme);
   }
 
