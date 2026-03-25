@@ -1,9 +1,9 @@
 import { ChartNoAxesCombined, CirclePlus, CircleUserRound, HandCoins, ListChecks } from "lucide-react";
 
 export const navItems = [
-  { href: "/", label: "Habits", icon: ListChecks },
-  { href: "/finance", label: "Finance", icon: HandCoins },
-  { href: "/add", label: "Add", icon: CirclePlus },
-  { href: "/analytics", label: "Analytics", icon: ChartNoAxesCombined },
-  { href: "/profile", label: "Profile", icon: CircleUserRound },
+  { href: "/", labelKey: "nav.habits", icon: ListChecks },
+  { href: "/finance", labelKey: "nav.finance", icon: HandCoins },
+  { href: "/add", labelKey: "nav.add", icon: CirclePlus },
+  { href: "/analytics", labelKey: "nav.analytics", icon: ChartNoAxesCombined },
+  { href: "/profile", labelKey: "nav.profile", icon: CircleUserRound },
 ] as const;

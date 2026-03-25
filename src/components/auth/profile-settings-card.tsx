@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import {
@@ -14,6 +14,12 @@ import {
 import { User, Phone, Globe, Languages, Save, Loader2 } from "lucide-react";
 import { SubscriptionBadge } from "@/features/subscription/components/subscription-badge";
 import { getStoredUserSession } from "@/lib/storage/session";
+import {
+  getStoredAppLanguage,
+  setStoredAppLanguage,
+  subscribeToAppLanguage,
+} from "@/lib/i18n/language";
+import { t } from "@/lib/i18n/translations";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -41,6 +47,7 @@ export function ProfileSettingsCard() {
     register,
     reset,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
@@ -51,6 +58,18 @@ export function ProfileSettingsCard() {
       language: cachedProfile?.language ?? "en",
     },
   });
+  const language = useSyncExternalStore(subscribeToAppLanguage, getStoredAppLanguage, () => "en");
+  const selectedLanguage = watch("language");
+
+  useEffect(() => {
+    if (selectedLanguage !== "en" && selectedLanguage !== "bn") {
+      return;
+    }
+
+    if (selectedLanguage !== language) {
+      setStoredAppLanguage(selectedLanguage);
+    }
+  }, [language, selectedLanguage]);
 
   useEffect(() => {
     let mounted = true;
@@ -101,10 +120,11 @@ export function ProfileSettingsCard() {
         language: profile.language,
       });
       setSummary({ tier: profile.subscriptionTier, endDate: profile.subscriptionEndDate });
-      setMessage("Profile settings updated successfully!");
+      setStoredAppLanguage(profile.language === "bn" ? "bn" : "en");
+      setMessage(t(language, "settings.success"));
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Profile update failed.");
+      setMessage(error instanceof Error ? error.message : t(language, "settings.updateError"));
     }
   });
 
@@ -119,14 +139,14 @@ export function ProfileSettingsCard() {
   return (
     <article className="animate-soft-rise overflow-hidden rounded-[2.5rem] border border-border/80 bg-surface shadow-[var(--soft-shadow)]">
       <div className="border-b border-border/50 bg-muted/5 p-6">
-        <h2 className="text-xl font-bold tracking-tight text-foreground">Account Settings</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Modify your identity and regional preferences.</p>
+        <h2 className="text-xl font-bold tracking-tight text-foreground">{t(language, "settings.accountHeading")}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t(language, "settings.accountDescription")}</p>
       </div>
 
       <div className="p-6">
         {summary && (
           <div className="mb-6 flex items-center justify-between rounded-2xl bg-primary/5 px-4 py-3 border border-primary/10">
-            <span className="text-sm font-medium text-muted-foreground tracking-wide uppercase">Subscription Status</span>
+            <span className="text-sm font-medium text-muted-foreground tracking-wide uppercase">{t(language, "settings.subscriptionStatus")}</span>
             <SubscriptionBadge tier={summary.tier} />
           </div>
         )}
@@ -134,7 +154,7 @@ export function ProfileSettingsCard() {
         <form className="space-y-5" onSubmit={onSubmit} noValidate>
           <div className="space-y-1.5">
             <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
-              <User size={14} className="text-primary" /> Full Name
+              <User size={14} className="text-primary" /> {t(language, "settings.fullName")}
             </label>
             <div className="relative group">
               <input 
@@ -148,7 +168,7 @@ export function ProfileSettingsCard() {
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
-                <Phone size={14} className="text-primary" /> Phone Number
+                <Phone size={14} className="text-primary" /> {t(language, "settings.phone")}
               </label>
               <input 
                 className="min-h-12 w-full rounded-2xl border border-border bg-surface-elevated px-4 text-sm font-medium transition-all focus:border-primary/50 focus:outline-none focus:ring-4 focus:ring-primary/5" 
@@ -159,14 +179,14 @@ export function ProfileSettingsCard() {
 
             <div className="space-y-1.5">
               <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
-                <Languages size={14} className="text-primary" /> Preferred Language
+                <Languages size={14} className="text-primary" /> {t(language, "settings.preferredLanguage")}
               </label>
               <select 
                 className="app-select min-h-12 w-full rounded-2xl border border-border bg-surface-elevated px-4 text-sm font-medium transition-all focus:border-primary/50 focus:outline-none focus:ring-4 focus:ring-primary/5 cursor-pointer" 
                 {...register("language")}
               >
-                <option value="en">English (Global)</option>
-                <option value="bn">Bengali (Native)</option>
+                <option value="en">{t(language, "settings.languageEnglish")}</option>
+                <option value="bn">{t(language, "settings.languageBangla")}</option>
               </select>
               {errors.language && <p className="text-[10px] font-bold text-red-500 uppercase tracking-tight">{errors.language.message}</p>}
             </div>
@@ -174,7 +194,7 @@ export function ProfileSettingsCard() {
 
           <div className="space-y-1.5">
             <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
-              <Globe size={14} className="text-primary" /> Home Region/Country
+              <Globe size={14} className="text-primary" /> {t(language, "settings.country")}
             </label>
             <input 
               className="min-h-12 w-full rounded-2xl border border-border bg-surface-elevated px-4 text-sm font-medium transition-all focus:border-primary/50 focus:outline-none focus:ring-4 focus:ring-primary/5" 
@@ -193,7 +213,7 @@ export function ProfileSettingsCard() {
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <>
-                <Save size={18} /> Update Profile
+                <Save size={18} /> {t(language, "settings.updateProfile")}
               </>
             )}
           </button>

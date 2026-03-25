@@ -4,13 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { navItems } from "@/components/navigation/nav-items";
+import { getStoredAppLanguage, subscribeToAppLanguage } from "@/lib/i18n/language";
+import { t } from "@/lib/i18n/translations";
+import { useSyncExternalStore } from "react";
 
 export function BottomTabBar() {
   const pathname = usePathname();
+  const language = useSyncExternalStore(subscribeToAppLanguage, getStoredAppLanguage, () => "en");
 
   return (
     <nav
-      aria-label="Primary"
+      aria-label={t(language, "shell.primary")}
       className="fixed bottom-0 left-0 right-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 md:hidden"
     >
       <ul
@@ -52,7 +56,7 @@ export function BottomTabBar() {
                 {isAdd ? (
                   <span className="absolute inset-0 -z-10 rounded-full bg-gradient-to-br from-primary to-accent shadow-[0_14px_24px_-12px_rgba(34,90,64,0.8)]" />
                 ) : null}
-                <span className={clsx("mt-0.5", isAdd ? "text-[10px] font-bold tracking-wide" : "")}>{item.label}</span>
+                <span className={clsx("mt-0.5", isAdd ? "text-[10px] font-bold tracking-wide" : "")}>{t(language, item.labelKey)}</span>
               </Link>
             </li>
           );

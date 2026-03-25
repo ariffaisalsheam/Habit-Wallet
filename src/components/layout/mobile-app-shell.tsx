@@ -13,6 +13,12 @@ import { useTransactionsStore } from "@/features/finance/store/use-transactions-
 import { useBudgetsStore } from "@/features/finance/store/use-budgets-store";
 import { useHabitsStore } from "@/features/habits/store/use-habits-store";
 import { getLastSyncAt, LAST_SYNC_EVENT } from "@/lib/storage/sync-queue";
+import {
+  getStoredAppLanguage,
+  setStoredAppLanguage,
+  subscribeToAppLanguage,
+} from "@/lib/i18n/language";
+import { t, translateTitle } from "@/lib/i18n/translations";
 
 type MobileAppShellProps = {
   children: ReactNode;
@@ -106,19 +112,36 @@ export function MobileAppShell({ children, title = "Dashboard" }: MobileAppShell
   const pendingTotal = pendingTransactions + pendingBudgets + pendingHabits;
   const syncingAny = syncingTransactions || syncingBudgets || syncingHabits;
   const storedLastSyncedAt = useSyncExternalStore(subscribeToLastSync, readLastSyncAt, () => null);
+  const language = useSyncExternalStore(subscribeToAppLanguage, getStoredAppLanguage, () => "en");
   const lastSyncedAt = syncingAny ? null : storedLastSyncedAt;
 
+  useEffect(() => {
+    if (!profileForSession?.language) {
+      return;
+    }
+
+    const nextLanguage = profileForSession.language === "bn" ? "bn" : "en";
+    if (nextLanguage !== language) {
+      setStoredAppLanguage(nextLanguage);
+    }
+  }, [language, profileForSession?.language]);
+
+  const displayTitle = translateTitle(language, title);
+  const pendingLabel = pendingTotal === 1 ? (language === "bn" ? "পরিবর্তন" : "change") : language === "bn" ? "পরিবর্তন" : "changes";
+
   const syncStatusText = !isOnline
-    ? "Offline mode active"
+    ? t(language, "sync.offline")
     : !isPro
-      ? "Cloud sync locked (Professional feature)"
+      ? t(language, "sync.locked")
       : syncingAny
-        ? "Syncing..."
+        ? t(language, "sync.syncing")
         : pendingTotal > 0
-          ? `${pendingTotal} change${pendingTotal === 1 ? "" : "s"} pending sync`
+          ? t(language, "sync.pending", { count: pendingTotal, label: pendingLabel })
           : lastSyncedAt
-            ? `Synced at ${new Date(lastSyncedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-            : "Synced";
+            ? t(language, "sync.syncedAt", {
+                time: new Date(lastSyncedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+              })
+            : t(language, "sync.synced");
 
   return (
     <div className="wellness-shell min-h-dvh bg-background">
@@ -140,10 +163,10 @@ export function MobileAppShell({ children, title = "Dashboard" }: MobileAppShell
                 />
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                    HabitWallet
+                    {t(language, "shell.brand")}
                   </p>
                   <h1 className="font-mono text-lg font-semibold leading-none text-foreground md:text-xl">
-                    {title}
+                    {displayTitle}
                   </h1>
                 </div>
               </div>
@@ -190,7 +213,7 @@ export function MobileAppShell({ children, title = "Dashboard" }: MobileAppShell
                     href="/subscription"
                     className="rounded-md bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/25"
                   >
-                    Upgrade
+                    {t(language, "sync.upgrade")}
                   </Link>
                 ) : null}
               </div>

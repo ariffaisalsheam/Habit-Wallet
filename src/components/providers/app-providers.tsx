@@ -8,6 +8,7 @@ import { useTransactionsStore } from "@/features/finance/store/use-transactions-
 import { useHabitsStore } from "@/features/habits/store/use-habits-store";
 import { getSyncQueueCount, setLastSyncNow } from "@/lib/storage/sync-queue";
 import { isCloudSyncEnabledForCurrentUser } from "@/lib/subscription/access";
+import { getStoredAppLanguage } from "@/lib/i18n/language";
 
 type AppProvidersProps = {
   children: ReactNode;
@@ -29,6 +30,14 @@ function applyInitialTheme() {
   const root = document.documentElement;
   root.classList.toggle("dark", theme === "dark");
   root.style.colorScheme = theme;
+}
+
+function applyInitialLanguage() {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.documentElement.lang = getStoredAppLanguage();
 }
 
 export function AppProviders({ children }: AppProvidersProps) {
@@ -56,6 +65,7 @@ export function AppProviders({ children }: AppProvidersProps) {
 
   useEffect(() => {
     applyInitialTheme();
+    applyInitialLanguage();
 
     void client.ping().catch(() => {
       // Keep startup resilient if ping fails temporarily.

@@ -1,12 +1,19 @@
+"use client";
+
 import { MobileAppShell } from "@/components/layout/mobile-app-shell";
 import { ProfileAuthCard } from "@/components/auth/profile-auth-card";
 import { ProfileSettingsCard } from "@/components/auth/profile-settings-card";
 import Link from "next/link";
 import { ArrowRight, ShieldCheck } from "lucide-react";
+import { useSyncExternalStore } from "react";
+import { getStoredAppLanguage, subscribeToAppLanguage } from "@/lib/i18n/language";
+import { t } from "@/lib/i18n/translations";
 
 export default function ProfilePage() {
+  const language = useSyncExternalStore(subscribeToAppLanguage, getStoredAppLanguage, () => "en");
+
   return (
-    <MobileAppShell title="Profile">
+    <MobileAppShell title={t(language, "title.profile")}>
       <section className="mx-auto max-w-3xl space-y-6 pb-12 animate-soft-rise">
         
         {/* Header Hero Section */}
@@ -16,9 +23,9 @@ export default function ProfilePage() {
           
           <div className="relative z-10 space-y-4">
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">My Sanctum</h1>
+              <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">{t(language, "profile.pageHeading")}</h1>
               <p className="mt-2 text-sm font-medium text-white/80 max-w-sm">
-                Your private space to manage identity, security, and premium configurations.
+                {t(language, "profile.pageDescription")}
               </p>
             </div>
           </div>
@@ -38,10 +45,10 @@ export default function ProfilePage() {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-amber-500" />
-                <h2 className="text-xl font-bold tracking-tight text-foreground">Premium Experience</h2>
+                <h2 className="text-xl font-bold tracking-tight text-foreground">{t(language, "profile.premiumHeading")}</h2>
               </div>
               <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-                Upgrade to Professional for 90-day insights and PDF exports while keeping your core tracking free forever.
+                {t(language, "profile.premiumDescription")}
               </p>
             </div>
 
@@ -49,7 +56,7 @@ export default function ProfilePage() {
               href="/subscription"
               className="inline-flex min-h-14 items-center gap-3 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-600 px-8 text-sm font-black uppercase tracking-[0.15em] text-white shadow-lg shadow-amber-500/20 transition-all active:scale-95"
             >
-              Subscription <ArrowRight size={16} />
+              {t(language, "profile.subscriptionCta")} <ArrowRight size={16} />
             </Link>
           </div>
         </article>
@@ -57,7 +64,7 @@ export default function ProfilePage() {
         {/* Footer Info */}
         <footer className="text-center pb-4">
           <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-muted-foreground/40">
-            HabitWallet Version 1.0.2 • Secure Cloud Auth
+            {t(language, "profile.footer")}
           </p>
         </footer>
 

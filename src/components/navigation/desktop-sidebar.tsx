@@ -4,9 +4,13 @@ import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navItems } from "@/components/navigation/nav-items";
+import { useSyncExternalStore } from "react";
+import { getStoredAppLanguage, subscribeToAppLanguage } from "@/lib/i18n/language";
+import { t } from "@/lib/i18n/translations";
 
 export function DesktopSidebar() {
   const pathname = usePathname();
+  const language = useSyncExternalStore(subscribeToAppLanguage, getStoredAppLanguage, () => "en");
 
   return (
     <aside className="hidden min-h-dvh border-r border-border/70 bg-surface/80 p-3 backdrop-blur md:flex md:flex-col">
@@ -27,7 +31,7 @@ export function DesktopSidebar() {
               )}
             >
               <Icon size={18} strokeWidth={2} className="shrink-0" />
-              <span className="hidden lg:inline">{item.label}</span>
+              <span className="hidden lg:inline">{t(language, item.labelKey)}</span>
             </Link>
           );
         })}
