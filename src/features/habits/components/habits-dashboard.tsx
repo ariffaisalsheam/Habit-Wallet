@@ -3,8 +3,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertTriangle,
+  BookmarkCheck,
   CheckCircle2,
   CloudSun,
+  Eraser,
   Moon,
   Pencil,
   Plus,
@@ -94,9 +96,10 @@ export function HabitsDashboard() {
   const today = new Date().toISOString().slice(0, 10);
   const reflectionKey = `${STORAGE_KEYS.dailyReflection}_${today}`;
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [modalMode, setModalMode] = useState<"add" | "edit" | null>(null);
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [reflectionDirty, setReflectionDirty] = useState(false);
+  const [reflectionSavedAt, setReflectionSavedAt] = useState<string | null>(null);
   const [reflection, setReflection] = useState(() => {
     if (typeof window === "undefined") return "";
     return window.localStorage.getItem(reflectionKey) ?? "";
@@ -119,11 +122,16 @@ export function HabitsDashboard() {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<HabitValues>({
     resolver: zodResolver(habitSchema),
     defaultValues: DEFAULT_HABIT_FORM_VALUES,
   });
+
+  const selectedFrequency = watch("frequency");
+  const selectedColor = watch("color");
 
   const completedToday = habits.filter((habit) =>
     isHabitCompletedForDate(completions, habit.id, today)
@@ -145,6 +153,8 @@ export function HabitsDashboard() {
     (max, habit) => Math.max(max, getHabitStreakDays(completions, habit.id, today)),
     0
   );
+  const hasReflection = reflection.trim().length > 0;
+  const reflectionHealth = reflection.trim().length >= 24 ? "Ready" : reflection.trim().length > 0 ? "Draft" : "Empty";
 
   const blockGroups = useMemo(() => {
     const grouped: Record<DayBlock, HabitItem[]> = {
@@ -167,10 +177,21 @@ export function HabitsDashboard() {
   const ringOffset = circumference - circumference * completionRatio;
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+      return;
+    }
 
-    window.localStorage.setItem(reflectionKey, reflection);
-  }, [reflection, reflectionKey]);
+    const rawSavedAt = window.localStorage.getItem(`${reflectionKey}_saved_at`);
+    setReflectionSavedAt(rawSavedAt);
+  }, [reflectionKey]);
+
+  useEffect(() => {
+    if (selectedFrequency !== "daily") {
+      return;
+    }
+
+    setValue("targetDaysPerWeek", 7, { shouldValidate: true });
+  }, [selectedFrequency, setValue]);
 
   useEffect(() => {
     void loadFromBackend();
@@ -188,21 +209,7 @@ export function HabitsDashboard() {
     return () => window.clearTimeout(timer);
   }, [clearHabitsError, errorMessage]);
 
-  useEffect(() => {
-    if (!successMessage) return;
-
-    pushNotice("success", successMessage);
-
-    const timer = window.setTimeout(() => {
-      setSuccessMessage(null);
-    }, 2200);
-
-    return () => window.clearTimeout(timer);
-  }, [successMessage]);
-
   const onSubmit = handleSubmit(async (values) => {
-    setSuccessMessage(null);
-
     const payload: HabitInput = {
       title: values.title.trim(),
       category: values.category.trim(),
@@ -214,28 +221,32 @@ export function HabitsDashboard() {
 
     if (editingId) {
       await updateHabit(editingId, payload);
-      setEditingId(null);
-      setSuccessMessage("Habit updated successfully.");
+      pushNotice("success", "Habit updated successfully.");
     } else {
       await addHabit(payload);
-      setSuccessMessage("Habit added successfully.");
+      pushNotice("success", "Habit added successfully.");
     }
 
     reset(DEFAULT_HABIT_FORM_VALUES);
-
-    if (!editingId) {
-      setShowForm(false);
-    }
+    setEditingId(null);
+    setModalMode(null);
   });
 
   function startEdit(habit: HabitItem) {
     setEditingId(habit.id);
-    setShowForm(false);
+    setModalMode("edit");
     reset(toFormValues(habit));
   }
 
-  function cancelEdit() {
+  function openAddModal() {
     setEditingId(null);
+    setModalMode("add");
+    reset(DEFAULT_HABIT_FORM_VALUES);
+  }
+
+  function closeModal() {
+    setEditingId(null);
+    setModalMode(null);
     reset(DEFAULT_HABIT_FORM_VALUES);
   }
 
@@ -250,14 +261,65 @@ export function HabitsDashboard() {
 
   const editingHabit = editingId ? habits.find((habit) => habit.id === editingId) ?? null : null;
 
+  const reflectionPrompts = [
+    "One tiny win I will complete today:",
+    "What might distract me, and how will I respond?",
+    "Tonight I want to feel proud because:",
+  ];
+
+  function saveReflection() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(reflectionKey, reflection);
+    const savedAt = new Date().toISOString();
+    window.localStorage.setItem(`${reflectionKey}_saved_at`, savedAt);
+    setReflectionSavedAt(savedAt);
+    setReflectionDirty(false);
+    pushNotice("success", "Reflection saved.");
+  }
+
+  function clearReflection() {
+    setReflection("");
+    setReflectionDirty(true);
+  }
+
+  function appendPrompt(prompt: string) {
+    setReflection((current) => {
+      const spacer = current.trim().length > 0 ? "\n\n" : "";
+      return `${current}${spacer}${prompt} `;
+    });
+    setReflectionDirty(true);
+  }
+
+  function getFrequencyLabel(habit: HabitItem) {
+    if (habit.frequency === "daily") {
+      return "Daily";
+    }
+
+    if (habit.frequency === "weekly") {
+      return `Weekly \u00b7 ${habit.targetDaysPerWeek} day${habit.targetDaysPerWeek > 1 ? "s" : ""}`;
+    }
+
+    return `Flexible \u00b7 ${habit.targetDaysPerWeek} day${habit.targetDaysPerWeek > 1 ? "s" : ""}`;
+  }
+
+  function getBlockCompletionCount(blockHabits: HabitItem[]) {
+    return blockHabits.reduce(
+      (count, habit) => count + (isHabitCompletedForDate(completions, habit.id, today) ? 1 : 0),
+      0
+    );
+  }
+
   useEffect(() => {
-    if (!editingId) {
+    if (!modalMode) {
       return;
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        cancelEdit();
+        closeModal();
       }
     };
 
@@ -265,7 +327,7 @@ export function HabitsDashboard() {
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [editingId]);
+  }, [modalMode]);
 
   async function handleSyncNow() {
     await syncPending();
@@ -273,11 +335,6 @@ export function HabitsDashboard() {
 
   return (
     <section className="space-y-5 pb-10 animate-soft-rise">
-      {syncing ? (
-        <p className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-surface-elevated px-3 py-1 text-xs text-muted-foreground">
-          <RefreshCw size={12} className="animate-spin" /> Syncing habits...
-        </p>
-      ) : null}
       {pendingQueueCount > 0 ? (
         <div className="glass-panel flex items-center justify-between gap-3 rounded-2xl border-amber-300/70 bg-amber-50/80 px-3 py-2 text-xs text-amber-900 dark:bg-amber-300/10 dark:text-amber-200">
           <p className="inline-flex items-center gap-1.5">
@@ -314,6 +371,16 @@ export function HabitsDashboard() {
             </p>
           </div>
         ))}
+      </div>
+
+      <div className="flex items-center justify-end">
+        <button
+          type="button"
+          onClick={openAddModal}
+          className="inline-flex min-h-10 items-center gap-1 rounded-full bg-primary/90 px-4 text-sm font-semibold text-white shadow-[var(--card-shadow)] transition hover:-translate-y-0.5 hover:bg-primary"
+        >
+          <Plus size={14} /> Add habit
+        </button>
       </div>
 
       <article className="wellness-card animate-breathe relative overflow-hidden rounded-[2rem] p-5">
@@ -378,20 +445,39 @@ export function HabitsDashboard() {
 
       <div className="grid gap-4 lg:grid-cols-[1.35fr_0.9fr]">
         <article className="wellness-card rounded-[2rem] p-5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-foreground">Daily Rhythm</h3>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">Daily Rhythm</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Move through your day in focused blocks and close each one with intent.
+              </p>
+            </div>
             <p className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-3 py-1 text-xs font-medium text-foreground">
               <Sprout size={12} /> {topStreak} day growth
             </p>
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-border/70 bg-surface-elevated px-3 py-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Completed today</span>
+              <span className="font-semibold text-foreground">{completedToday}/{habits.length || 0}</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-border/70">
+              <span
+                className="block h-full rounded-full bg-primary transition-all duration-500"
+                style={{ width: `${Math.max(8, Math.round(completionRatio * 100))}%` }}
+              />
+            </div>
           </div>
 
           <div className="mt-4 space-y-3">
             {(["morning", "afternoon", "evening"] as DayBlock[]).map((block) => {
               const BlockIcon = dayBlockMeta[block].icon;
               const blockHabits = blockGroups[block];
+              const blockCompleted = getBlockCompletionCount(blockHabits);
 
               return (
-                <section key={block} className="rounded-3xl bg-surface/75 p-3 shadow-[var(--card-shadow)]">
+                <section key={block} className="rounded-3xl border border-border/60 bg-surface/75 p-3 shadow-[var(--card-shadow)]">
                   <div className="mb-3 flex items-center justify-between">
                     <div>
                       <h4 className="inline-flex items-center gap-2 text-base font-semibold text-foreground">
@@ -400,7 +486,7 @@ export function HabitsDashboard() {
                       <p className="mt-0.5 text-xs text-muted-foreground">{dayBlockMeta[block].description}</p>
                     </div>
                     <span className="rounded-full bg-surface-elevated px-2 py-1 text-xs text-muted-foreground">
-                      {blockHabits.length}
+                      {blockCompleted}/{blockHabits.length || 0}
                     </span>
                   </div>
 
@@ -417,12 +503,21 @@ export function HabitsDashboard() {
                         return (
                           <li
                             key={habit.id}
-                            className="rounded-2xl border border-border/65 bg-surface-elevated px-3 py-3 shadow-[var(--card-shadow)]"
+                            className="rounded-2xl border bg-surface-elevated px-3 py-3 transition-shadow duration-300"
+                            style={{
+                              borderColor: `${habit.color}66`,
+                              boxShadow: `0 0 0 1px ${habit.color}1f, 0 14px 24px -20px ${habit.color}`,
+                            }}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <p className="text-base font-semibold text-foreground">{habit.title}</p>
                                 <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                                  <span
+                                    className="inline-flex h-2.5 w-2.5 rounded-full border border-border/70"
+                                    style={{ backgroundColor: habit.color }}
+                                    aria-hidden="true"
+                                  />
                                   <span>{habit.category}</span>
                                   <span>•</span>
                                   <span className="inline-flex items-center gap-1">
@@ -436,7 +531,7 @@ export function HabitsDashboard() {
                                 <button
                                   type="button"
                                   onClick={() => startEdit(habit)}
-                                  className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-full border border-border/70 bg-surface text-foreground"
+                                  className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-full border border-border/70 bg-surface text-foreground transition hover:bg-primary/10"
                                   aria-label="Edit habit"
                                 >
                                   <Pencil size={14} />
@@ -446,7 +541,7 @@ export function HabitsDashboard() {
                                   onClick={() => {
                                     void removeHabit(habit.id);
                                   }}
-                                  className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-full border border-border/70 bg-surface text-foreground"
+                                  className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-full border border-border/70 bg-surface text-foreground transition hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/30 dark:hover:text-red-200"
                                   aria-label="Delete habit"
                                 >
                                   <Trash2 size={14} />
@@ -455,9 +550,7 @@ export function HabitsDashboard() {
                             </div>
 
                             <div className="mt-3 flex items-center justify-between">
-                              <span className="text-xs text-muted-foreground">
-                                {habit.frequency} • {habit.targetDaysPerWeek} days/week
-                              </span>
+                              <span className="text-xs text-muted-foreground">{getFrequencyLabel(habit)}</span>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -466,7 +559,7 @@ export function HabitsDashboard() {
                                 className={
                                   completed
                                     ? "soft-glow-active inline-flex min-h-10 items-center gap-1 rounded-full bg-primary/20 px-3 text-xs font-semibold text-foreground"
-                                    : "inline-flex min-h-10 items-center gap-1 rounded-full border border-border bg-surface px-3 text-xs font-semibold text-foreground"
+                                    : "inline-flex min-h-10 items-center gap-1 rounded-full border border-border bg-surface px-3 text-xs font-semibold text-foreground transition hover:border-primary/50 hover:bg-primary/10"
                                 }
                               >
                                 <CheckCircle2 size={14} className={completed ? "animate-breathe text-primary" : "text-muted-foreground"} />
@@ -486,167 +579,110 @@ export function HabitsDashboard() {
 
         <div className="space-y-4">
           <article className="wellness-card rounded-[2rem] p-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">Reflection</h3>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Reflection</h3>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Turn intention into a simple plan you can actually follow today.
+                </p>
+              </div>
+              <span
+                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                  reflectionHealth === "Ready"
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200"
+                    : reflectionHealth === "Draft"
+                      ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200"
+                      : "bg-surface-elevated text-muted-foreground"
+                }`}
+              >
+                {reflectionHealth}
+              </span>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Write one intention for today or a brief gratitude note.
-            </p>
+
+            <div className="mt-3 grid gap-2 rounded-2xl border border-border/70 bg-surface-elevated p-3 text-xs text-muted-foreground">
+              <p className="flex items-center justify-between">
+                <span>Focus habit</span>
+                <span className="font-semibold text-foreground">{focusHabit?.title ?? "None selected"}</span>
+              </p>
+              <p className="flex items-center justify-between">
+                <span>Completion momentum</span>
+                <span className="font-semibold text-foreground">{Math.round(completionRatio * 100)}%</span>
+              </p>
+              <p className="flex items-center justify-between">
+                <span>Last saved</span>
+                <span className="font-semibold text-foreground">
+                  {reflectionSavedAt
+                    ? new Date(reflectionSavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                    : "Not saved"}
+                </span>
+              </p>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {reflectionPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => appendPrompt(prompt)}
+                  className="rounded-full border border-border/70 bg-surface-elevated px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-primary/10"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+
             <textarea
               value={reflection}
-              onChange={(event) => setReflection(event.target.value)}
-              rows={5}
+              onChange={(event) => {
+                setReflection(event.target.value);
+                setReflectionDirty(true);
+              }}
+              rows={6}
               className="mt-3 w-full rounded-2xl border border-border/70 bg-surface-elevated px-3 py-2 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-accent"
-              placeholder="I will slow down between tasks and take three mindful breaths."
+              placeholder="What will I do first? What can block me? How will I finish strong today?"
             />
-          </article>
 
-          <article className="wellness-card rounded-[2rem] p-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">Add habit</h3>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForm((value) => !value);
-                  if (!showForm) {
-                    reset(DEFAULT_HABIT_FORM_VALUES);
-                  }
-                }}
-                className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full border border-border/70 bg-surface-elevated text-foreground"
-                aria-label={showForm ? "Hide habit form" : "Show habit form"}
-              >
-                <Plus size={16} className={showForm ? "rotate-45 transition-transform" : "transition-transform"} />
-              </button>
-            </div>
-
-            {showForm ? (
-              <form className="mt-3 space-y-3" onSubmit={onSubmit} noValidate>
-                <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-muted-foreground">Habit title</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Read 20 minutes"
-                    className="min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
-                    {...register("title")}
-                  />
-                  {errors.title ? <span className="mt-1 block text-xs text-red-600">{errors.title.message}</span> : null}
-                </label>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-muted-foreground">Category</span>
-                    <input
-                      type="text"
-                      className="min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
-                      {...register("category")}
-                    />
-                    {errors.category ? (
-                      <span className="mt-1 block text-xs text-red-600">{errors.category.message}</span>
-                    ) : null}
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-muted-foreground">Color</span>
-                    <input
-                      type="color"
-                      className="min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-2"
-                      {...register("color")}
-                    />
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-muted-foreground">Frequency</span>
-                    <select
-                      className="app-select min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
-                      {...register("frequency")}
-                    >
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="custom">Custom</option>
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-muted-foreground">Time block</span>
-                    <select
-                      className="app-select min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
-                      {...register("timeBlock")}
-                    >
-                      <option value="morning">Morning</option>
-                      <option value="afternoon">Afternoon</option>
-                      <option value="evening">Evening</option>
-                    </select>
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-muted-foreground">Target days/week</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={7}
-                      className="min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
-                      {...register("targetDaysPerWeek")}
-                    />
-                  </label>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-primary/85 px-4 text-sm font-semibold text-white"
-                  >
-                    Add habit
-                  </button>
-                  {showForm && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowForm(false);
-                        reset(DEFAULT_HABIT_FORM_VALUES);
-                      }}
-                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-border px-4 text-sm font-semibold text-foreground"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-              </form>
-            ) : (
-              <div className="mt-3 space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Keep this tucked away to reduce clutter. Open only when you are ready to add something new.
-                </p>
-                {habits.length === 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowForm(true)}
-                    className="inline-flex min-h-10 items-center rounded-full bg-primary/85 px-4 text-sm font-semibold text-white"
-                  >
-                    Add your first habit
-                  </button>
-                ) : null}
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">{reflection.length}/280 characters</p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={clearReflection}
+                  className="inline-flex min-h-9 items-center gap-1 rounded-full border border-border px-3 text-xs font-semibold text-foreground transition hover:bg-surface-elevated"
+                >
+                  <Eraser size={12} /> Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={saveReflection}
+                  disabled={!reflectionDirty && hasReflection}
+                  className="inline-flex min-h-9 items-center gap-1 rounded-full bg-primary/90 px-3 text-xs font-semibold text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-55"
+                >
+                  <BookmarkCheck size={12} /> Save reflection
+                </button>
               </div>
-            )}
+            </div>
           </article>
         </div>
       </div>
 
-      {editingHabit ? (
+      {modalMode ? (
         <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/45 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label="Edit habit">
           <div className="wellness-card max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-[2rem] p-5 shadow-2xl">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Edit Habit</p>
-                <h3 className="text-lg font-semibold text-foreground">{editingHabit.title}</h3>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                  {modalMode === "edit" ? "Edit Habit" : "Add Habit"}
+                </p>
+                <h3 className="text-lg font-semibold text-foreground">
+                  {modalMode === "edit" && editingHabit ? editingHabit.title : "Build a new routine"}
+                </h3>
               </div>
               <button
                 type="button"
-                onClick={cancelEdit}
+                onClick={closeModal}
                 className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full border border-border/70 bg-surface-elevated text-foreground"
-                aria-label="Close edit modal"
+                aria-label="Close habit modal"
               >
                 <Plus size={16} className="rotate-45" />
               </button>
@@ -686,6 +722,15 @@ export function HabitsDashboard() {
                 </label>
               </div>
 
+              <div className="rounded-2xl border border-border/70 bg-surface-elevated p-3 text-xs text-muted-foreground">
+                <p
+                  className="mb-2 h-1.5 rounded-full"
+                  style={{ backgroundColor: selectedColor || "#1f6b4a" }}
+                  aria-hidden="true"
+                />
+                Your selected color will glow on this habit card for quick visual scanning.
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <label className="block">
                   <span className="mb-1 block text-xs font-medium text-muted-foreground">Frequency</span>
@@ -695,7 +740,7 @@ export function HabitsDashboard() {
                   >
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
-                    <option value="custom">Custom</option>
+                    <option value="custom">Flexible days</option>
                   </select>
                 </label>
                 <label className="block">
@@ -718,9 +763,15 @@ export function HabitsDashboard() {
                     type="number"
                     min={1}
                     max={7}
+                    disabled={selectedFrequency === "daily"}
                     className="min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
                     {...register("targetDaysPerWeek")}
                   />
+                  <span className="mt-1 block text-[11px] text-muted-foreground">
+                    {selectedFrequency === "daily"
+                      ? "Daily habits are fixed at 7 days/week."
+                      : "Set how many days per week this habit should happen."}
+                  </span>
                 </label>
               </div>
 
@@ -730,11 +781,11 @@ export function HabitsDashboard() {
                   disabled={isSubmitting}
                   className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-primary/85 px-4 text-sm font-semibold text-white"
                 >
-                  Save changes
+                  {modalMode === "edit" ? "Save changes" : "Add habit"}
                 </button>
                 <button
                   type="button"
-                  onClick={cancelEdit}
+                  onClick={closeModal}
                   className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-border px-4 text-sm font-semibold text-foreground"
                 >
                   Cancel
