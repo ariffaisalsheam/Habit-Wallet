@@ -30,6 +30,7 @@ export const useHabitsStore = create<HabitsState>()(
               category: input.category.trim(),
               color: input.color,
               frequency: input.frequency,
+              timeBlock: input.timeBlock,
               targetDaysPerWeek: input.targetDaysPerWeek,
               isActive: true,
               createdAt: now,
@@ -49,6 +50,7 @@ export const useHabitsStore = create<HabitsState>()(
                   category: input.category.trim(),
                   color: input.color,
                   frequency: input.frequency,
+                  timeBlock: input.timeBlock,
                   targetDaysPerWeek: input.targetDaysPerWeek,
                   updatedAt: new Date().toISOString(),
                 }
@@ -93,6 +95,18 @@ export const useHabitsStore = create<HabitsState>()(
     {
       name: STORAGE_KEYS.habits,
       storage: createJSONStorage(() => localStorage),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<HabitsState>;
+
+        return {
+          ...currentState,
+          ...persisted,
+          habits: (persisted.habits ?? currentState.habits).map((habit) => ({
+            ...habit,
+            timeBlock: habit.timeBlock ?? "morning",
+          })),
+        };
+      },
       partialize: (state) => ({
         habits: state.habits,
         completions: state.completions,

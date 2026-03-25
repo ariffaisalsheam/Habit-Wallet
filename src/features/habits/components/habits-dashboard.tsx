@@ -26,22 +26,26 @@ const habitSchema = z.object({
   category: z.string().min(2, "Category is required"),
   color: z.string().min(4),
   frequency: z.enum(["daily", "weekly", "custom"]),
+  timeBlock: z.enum(["morning", "afternoon", "evening"]),
   targetDaysPerWeek: z.coerce.number().min(1).max(7),
 });
 
 type HabitValues = z.input<typeof habitSchema>;
-type DayBlock = "Morning" | "Afternoon" | "Evening";
+type DayBlock = "morning" | "afternoon" | "evening";
 
-const dayBlockMeta: Record<DayBlock, { icon: typeof Sunrise; description: string }> = {
-  Morning: {
+const dayBlockMeta: Record<DayBlock, { title: string; icon: typeof Sunrise; description: string }> = {
+  morning: {
+    title: "Morning",
     icon: Sunrise,
     description: "Slow start rituals and first-light anchors.",
   },
-  Afternoon: {
+  afternoon: {
+    title: "Afternoon",
     icon: Sun,
     description: "Midday energy with steady, focused actions.",
   },
-  Evening: {
+  evening: {
+    title: "Evening",
     icon: Moon,
     description: "Wind-down habits that protect deep rest.",
   },
@@ -53,22 +57,9 @@ function toFormValues(habit: HabitItem): HabitValues {
     category: habit.category,
     color: habit.color,
     frequency: habit.frequency,
+    timeBlock: habit.timeBlock ?? "morning",
     targetDaysPerWeek: habit.targetDaysPerWeek,
   };
-}
-
-function getDayBlock(habit: HabitItem, index: number): DayBlock {
-  const signal = `${habit.title} ${habit.category}`.toLowerCase();
-
-  if (signal.includes("morning") || signal.includes("am") || signal.includes("wake")) {
-    return "Morning";
-  }
-
-  if (signal.includes("evening") || signal.includes("pm") || signal.includes("night")) {
-    return "Evening";
-  }
-
-  return (["Morning", "Afternoon", "Evening"] as DayBlock[])[index % 3];
 }
 
 function getMoodTone(completionRatio: number) {
@@ -112,6 +103,7 @@ export function HabitsDashboard() {
       category: "Health",
       color: "#1f6b4a",
       frequency: "daily",
+      timeBlock: "morning",
       targetDaysPerWeek: 7,
     },
   });
@@ -139,13 +131,13 @@ export function HabitsDashboard() {
 
   const blockGroups = useMemo(() => {
     const grouped: Record<DayBlock, HabitItem[]> = {
-      Morning: [],
-      Afternoon: [],
-      Evening: [],
+      morning: [],
+      afternoon: [],
+      evening: [],
     };
 
-    habits.forEach((habit, index) => {
-      const block = getDayBlock(habit, index);
+    habits.forEach((habit) => {
+      const block = habit.timeBlock ?? "morning";
       grouped[block].push(habit);
     });
 
@@ -169,6 +161,7 @@ export function HabitsDashboard() {
       category: values.category.trim(),
       color: values.color,
       frequency: values.frequency,
+      timeBlock: values.timeBlock,
       targetDaysPerWeek: Number(values.targetDaysPerWeek),
     };
 
@@ -185,6 +178,7 @@ export function HabitsDashboard() {
       category: "Health",
       color: "#1f6b4a",
       frequency: "daily",
+      timeBlock: "morning",
       targetDaysPerWeek: 7,
     });
   });
@@ -203,6 +197,7 @@ export function HabitsDashboard() {
       category: "Health",
       color: "#1f6b4a",
       frequency: "daily",
+      timeBlock: "morning",
       targetDaysPerWeek: 7,
     });
   }
@@ -279,7 +274,7 @@ export function HabitsDashboard() {
           </div>
 
           <div className="mt-4 space-y-3">
-            {(["Morning", "Afternoon", "Evening"] as DayBlock[]).map((block) => {
+            {(["morning", "afternoon", "evening"] as DayBlock[]).map((block) => {
               const BlockIcon = dayBlockMeta[block].icon;
               const blockHabits = blockGroups[block];
 
@@ -288,7 +283,7 @@ export function HabitsDashboard() {
                   <div className="mb-3 flex items-center justify-between">
                     <div>
                       <h4 className="inline-flex items-center gap-2 text-base font-semibold text-foreground">
-                        <BlockIcon size={16} /> {block}
+                        <BlockIcon size={16} /> {dayBlockMeta[block].title}
                       </h4>
                       <p className="mt-0.5 text-xs text-muted-foreground">{dayBlockMeta[block].description}</p>
                     </div>
@@ -459,6 +454,20 @@ export function HabitsDashboard() {
                       <option value="custom">Custom</option>
                     </select>
                   </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-muted-foreground">Time block</span>
+                    <select
+                      className="min-h-11 w-full rounded-2xl border border-border bg-surface-elevated px-3 text-sm"
+                      {...register("timeBlock")}
+                    >
+                      <option value="morning">Morning</option>
+                      <option value="afternoon">Afternoon</option>
+                      <option value="evening">Evening</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
                   <label className="block">
                     <span className="mb-1 block text-xs font-medium text-muted-foreground">Target days/week</span>
                     <input

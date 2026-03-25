@@ -21,6 +21,7 @@ const habitSchema = z.object({
   category: z.string().min(2, "Category is required"),
   color: z.string().min(4),
   frequency: z.enum(["daily", "weekly", "custom"]),
+  timeBlock: z.enum(["morning", "afternoon", "evening"]),
   targetDaysPerWeek: z.coerce.number().min(1).max(7),
 });
 
@@ -63,6 +64,7 @@ export function QuickAddPanel() {
       category: "Health",
       color: "#1f6b4a",
       frequency: "daily",
+      timeBlock: "morning",
       targetDaysPerWeek: 7,
     },
   });
@@ -97,6 +99,7 @@ export function QuickAddPanel() {
       category: values.category.trim(),
       color: values.color,
       frequency: values.frequency,
+      timeBlock: values.timeBlock,
       targetDaysPerWeek: Number(values.targetDaysPerWeek),
     });
 
@@ -105,6 +108,7 @@ export function QuickAddPanel() {
       category: "Health",
       color: "#1f6b4a",
       frequency: "daily",
+      timeBlock: "morning",
       targetDaysPerWeek: 7,
     });
 
@@ -264,6 +268,20 @@ export function QuickAddPanel() {
                   <option value="custom">Custom</option>
                 </select>
               </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-muted-foreground">Time block</span>
+                <select
+                  className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                  {...registerHabit("timeBlock")}
+                >
+                  <option value="morning">Morning</option>
+                  <option value="afternoon">Afternoon</option>
+                  <option value="evening">Evening</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-muted-foreground">Target days/week</span>
                 <input

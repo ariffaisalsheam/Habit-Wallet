@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import Image from "next/image";
 import { BottomTabBar } from "@/components/navigation/bottom-tab-bar";
+import { DesktopSidebar } from "@/components/navigation/desktop-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 type MobileAppShellProps = {
@@ -12,6 +13,7 @@ export function MobileAppShell({ children, title = "Dashboard" }: MobileAppShell
   return (
     <div className="wellness-shell min-h-dvh bg-background">
       <div className="mx-auto flex min-h-dvh w-full max-w-[72rem] gap-4 px-3 pb-1 pt-3 md:px-5 md:pt-6">
+        <DesktopSidebar />
         <BottomTabBar />
 
         <div className="flex w-full min-w-0 flex-col md:pb-4">

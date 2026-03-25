@@ -1,4 +1,5 @@
 export type HabitFrequency = "daily" | "weekly" | "custom";
+export type HabitTimeBlock = "morning" | "afternoon" | "evening";
 
 export type HabitItem = {
   id: string;
@@ -6,6 +7,7 @@ export type HabitItem = {
   category: string;
   color: string;
   frequency: HabitFrequency;
+  timeBlock: HabitTimeBlock;
   targetDaysPerWeek: number;
   isActive: boolean;
   createdAt: string;
@@ -26,5 +28,6 @@ export type HabitInput = {
   category: string;
   color: string;
   frequency: HabitFrequency;
+  timeBlock: HabitTimeBlock;
   targetDaysPerWeek: number;
 };
