@@ -67,10 +67,23 @@ type PlanCardProps = {
   isActive: boolean;
   isPro?: boolean;
   tag?: string;
+  ctaLabel?: string;
+  ctaMuted?: boolean;
   onSelect?: () => void;
 };
 
-function PlanCard({ name, price, period, features, isActive, isPro, tag, onSelect }: PlanCardProps) {
+function PlanCard({
+  name,
+  price,
+  period,
+  features,
+  isActive,
+  isPro,
+  tag,
+  ctaLabel,
+  ctaMuted,
+  onSelect,
+}: PlanCardProps) {
   return (
     <div
       className={`relative flex flex-col rounded-2xl border p-5 transition-all duration-200 ${
@@ -112,21 +125,23 @@ function PlanCard({ name, price, period, features, isActive, isPro, tag, onSelec
         ))}
       </ul>
 
-      {onSelect && (
+      {onSelect ? (
         <button
           type="button"
           onClick={onSelect}
           className={`inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl text-sm font-semibold transition-all ${
-            isPro
+            ctaMuted
+              ? "border border-border bg-surface-elevated text-muted-foreground"
+              : isPro
               ? "bg-primary text-white hover:bg-primary/90"
               : "border border-border bg-surface text-foreground hover:bg-background"
           }`}
         >
-          {isPro ? <Zap size={14} /> : null}
-          {isPro ? "Upgrade to Professional" : "Current Plan"}
-          {isPro && <ChevronRight size={14} />}
+          {isPro && !ctaMuted ? <Zap size={14} /> : null}
+          {ctaLabel ?? (isPro ? "Upgrade to Professional" : "Current Plan")}
+          {isPro && !ctaMuted ? <ChevronRight size={14} /> : null}
         </button>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -157,6 +172,7 @@ export function SubscriptionDashboard() {
   const [copiedBkash, setCopiedBkash] = useState(false);
   const [profileTier, setProfileTier] = useState<"free" | "pro">("free");
   const [profileEndDate, setProfileEndDate] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   const BKASH_STEPS = useMemo(() => [
     { step: 1, icon: Smartphone, title: "Open bKash", desc: "Launch the bKash app on your phone" },
@@ -201,6 +217,11 @@ export function SubscriptionDashboard() {
     return () => window.clearTimeout(timer);
   }, [clearSubscriptionError, errorMessage]);
 
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const {
     register,
     handleSubmit,
@@ -235,12 +256,19 @@ export function SubscriptionDashboard() {
       return null;
     }
 
+    const diffMs = end ? Math.max(0, end.getTime() - now) : null;
+    const daysLeft = diffMs === null ? null : Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const hoursLeft = diffMs === null ? null : Math.floor((diffMs / (1000 * 60 * 60)) % 24);
+
     return {
       end: end ? end.toLocaleDateString("en-GB") : "No expiry",
+      daysLeft,
+      hoursLeft,
     };
-  }, [profileEndDate, profileTier]);
+  }, [now, profileEndDate, profileTier]);
 
   const hasPendingRequest = myRequests.some((r) => r.status === "pending");
+  const isHighestTier = Boolean(activeSubscription);
 
   function handlePlanSelect(months: number) {
     setSelectedMonths(months);
@@ -308,7 +336,11 @@ export function SubscriptionDashboard() {
           </h2>
           <p className="mt-1 text-sm text-white/75">
             {activeSubscription
-              ? `Active until ${activeSubscription.end}`
+              ? `Active until ${activeSubscription.end}${
+                  activeSubscription.daysLeft !== null
+                    ? ` · ${activeSubscription.daysLeft}d ${activeSubscription.hoursLeft ?? 0}h left`
+                    : ""
+                }`
               : "Cloud sync, advanced analytics, PDF exports & more"}
           </p>
           {activeSubscription && (
@@ -328,7 +360,9 @@ export function SubscriptionDashboard() {
 
       {/* Plan Comparison */}
       <article>
-        <h3 className="mb-3 px-1 text-sm font-semibold text-foreground">Choose your plan</h3>
+        <h3 className="mb-3 px-1 text-sm font-semibold text-foreground">
+          {isHighestTier ? "Your current tier" : "Choose your plan"}
+        </h3>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <PlanCard
             name={SUBSCRIPTION_PLANS.free.name}
@@ -344,21 +378,45 @@ export function SubscriptionDashboard() {
             features={SUBSCRIPTION_PLANS.pro.features}
             isActive={Boolean(activeSubscription)}
             isPro
-            tag="Most Popular"
-            onSelect={() => handlePlanSelect(1)}
+            tag={isHighestTier ? "Current Highest Tier" : "Most Popular"}
+            ctaLabel={isHighestTier ? "Extend with annual offer" : "Upgrade to Professional"}
+            onSelect={() => handlePlanSelect(isHighestTier ? 12 : 1)}
           />
         </div>
       </article>
 
+      {isHighestTier ? (
+        <article className="rounded-[2rem] border border-emerald-200 bg-emerald-50/70 p-4 text-emerald-900 dark:border-emerald-800/40 dark:bg-emerald-900/20 dark:text-emerald-200">
+          <p className="text-sm font-semibold">You are already on the highest plan tier.</p>
+          <p className="mt-1 text-xs">
+            Want better value? Extend your Pro plan with 3-month or annual pricing below.
+          </p>
+        </article>
+      ) : null}
+
       {/* Duration Picker */}
-      {!activeSubscription && (
+      {
         <article className="rounded-[2rem] border border-border/80 bg-surface p-5 shadow-[var(--soft-shadow)]">
-          <h3 className="text-sm font-semibold text-foreground">Select duration</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            {isHighestTier ? "Extend your Pro plan" : "Select duration"}
+          </h3>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {[
-              { months: 1, label: "1 Month", price: config.proPrice },
-              { months: 3, label: "3 Months", price: config.threeMonthPrice, saving: `Save ${Math.round((1 - config.threeMonthPrice / (config.proPrice * 3)) * 100)}%` },
-              { months: 12, label: "1 Year", price: config.annualPrice, saving: `Save ${Math.round((1 - config.annualPrice / (config.proPrice * 12)) * 100)}%` },
+              { months: 1, label: "Starter", subLabel: "1 Month", price: config.proPrice },
+              {
+                months: 3,
+                label: "Growth",
+                subLabel: "3 Months",
+                price: config.threeMonthPrice,
+                saving: `Save ${Math.round((1 - config.threeMonthPrice / (config.proPrice * 3)) * 100)}%`,
+              },
+              {
+                months: 12,
+                label: "Elite",
+                subLabel: "1 Year",
+                price: config.annualPrice,
+                saving: `Save ${Math.round((1 - config.annualPrice / (config.proPrice * 12)) * 100)}%`,
+              },
             ].map((opt) => (
               <button
                 key={opt.months}
@@ -370,17 +428,18 @@ export function SubscriptionDashboard() {
                     : "border-border/60 bg-background hover:border-primary/50"
                 }`}
               >
-                <span className="text-xs font-medium text-foreground">{opt.label}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground/85">{opt.label}</span>
+                <span className="text-[10px] text-muted-foreground">{opt.subLabel}</span>
                 <span className="mt-1 text-sm font-bold text-foreground">৳{opt.price}</span>
                 {opt.saving && <span className="mt-0.5 text-[10px] text-primary">{opt.saving}</span>}
               </button>
             ))}
           </div>
         </article>
-      )}
+      }
 
       {/* bKash Payment Flow */}
-      {!activeSubscription && showForm && (
+      {showForm && (
         <article id="bkash-form" className="rounded-[2rem] border border-border/80 bg-surface p-5 shadow-[var(--soft-shadow)] animate-soft-rise">
           <div className="mb-4 flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#e2136e]/10">
@@ -388,7 +447,9 @@ export function SubscriptionDashboard() {
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">bKash Payment</p>
-              <p className="text-xs text-muted-foreground">Manual send-money activation</p>
+              <p className="text-xs text-muted-foreground">
+                {isHighestTier ? "Manual send-money extension" : "Manual send-money activation"}
+              </p>
             </div>
           </div>
 

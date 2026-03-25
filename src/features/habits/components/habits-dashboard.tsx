@@ -3,10 +3,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertTriangle,
+  Bot,
   BookmarkCheck,
   CheckCircle2,
   CloudSun,
   Eraser,
+  Info,
   Moon,
   Pencil,
   Plus,
@@ -312,6 +314,50 @@ export function HabitsDashboard() {
     );
   }
 
+  const aiInsight = useMemo(() => {
+    if (habits.length === 0) {
+      return {
+        title: "Start with one anchor habit",
+        suggestion: "Add one 5-minute morning habit first. Consistency beats volume.",
+        risk: "low" as const,
+      };
+    }
+
+    if (completionRatio < 0.35) {
+      return {
+        title: "High drop-off risk today",
+        suggestion:
+          "Pick only one must-do habit and commit to a tiny first step in the next 30 minutes.",
+        risk: "high" as const,
+      };
+    }
+
+    if (completionRatio < 0.7) {
+      return {
+        title: "Momentum is building",
+        suggestion: "You are in progress. Complete one more quick habit to lock in a positive day.",
+        risk: "medium" as const,
+      };
+    }
+
+    return {
+      title: "You are in strong flow",
+      suggestion: "Protect this streak by scheduling your next habit before the current block ends.",
+      risk: "low" as const,
+    };
+  }, [completionRatio, habits.length]);
+
+  function applyAiDraft() {
+    const focusLine = focusHabit ? `Primary focus: ${focusHabit.title}.` : "Primary focus: complete one quick win habit.";
+    const plan = `${focusLine}\n\nAI Coach:\n${aiInsight.suggestion}\n\nBlock commitment: I will finish at least one ${
+      completionRatio < 0.5 ? "small" : "meaningful"
+    } habit in my current time block.`;
+
+    setReflection(plan);
+    setReflectionDirty(true);
+    pushNotice("success", "AI reflection draft generated.");
+  }
+
   useEffect(() => {
     if (!modalMode) {
       return;
@@ -578,12 +624,15 @@ export function HabitsDashboard() {
         </article>
 
         <div className="space-y-4">
-          <article className="wellness-card rounded-[2rem] p-5">
-            <div className="flex items-start justify-between gap-3">
+          <article className="wellness-card relative overflow-hidden rounded-[2rem] p-5">
+            <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-accent/10 blur-2xl" />
+            <div className="absolute -left-8 bottom-0 h-20 w-20 rounded-full bg-primary/10 blur-2xl" />
+
+            <div className="relative z-10 flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg font-semibold text-foreground">Reflection</h3>
+                <h3 className="text-lg font-semibold text-foreground">Reflection Studio</h3>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  Turn intention into a simple plan you can actually follow today.
+                  Build a short, behavior-aware daily plan with AI guidance.
                 </p>
               </div>
               <span
@@ -599,67 +648,122 @@ export function HabitsDashboard() {
               </span>
             </div>
 
-            <div className="mt-3 grid gap-2 rounded-2xl border border-border/70 bg-surface-elevated p-3 text-xs text-muted-foreground">
-              <p className="flex items-center justify-between">
-                <span>Focus habit</span>
-                <span className="font-semibold text-foreground">{focusHabit?.title ?? "None selected"}</span>
-              </p>
-              <p className="flex items-center justify-between">
-                <span>Completion momentum</span>
-                <span className="font-semibold text-foreground">{Math.round(completionRatio * 100)}%</span>
-              </p>
-              <p className="flex items-center justify-between">
-                <span>Last saved</span>
-                <span className="font-semibold text-foreground">
+            <div className="relative z-10 mt-3 grid grid-cols-3 gap-2 rounded-2xl border border-border/70 bg-surface-elevated p-3 text-xs">
+              <div>
+                <p className="text-muted-foreground">Focus</p>
+                <p className="mt-0.5 truncate font-semibold text-foreground">{focusHabit?.title ?? "None"}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Momentum</p>
+                <p className="mt-0.5 font-semibold text-foreground">{Math.round(completionRatio * 100)}%</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Saved</p>
+                <p className="mt-0.5 font-semibold text-foreground">
                   {reflectionSavedAt
                     ? new Date(reflectionSavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                    : "Not saved"}
+                    : "No"}
+                </p>
+              </div>
+            </div>
+
+            <div
+              className={`relative z-10 mt-3 rounded-2xl border p-3 ${
+                aiInsight.risk === "high"
+                  ? "border-red-300 bg-red-50 text-red-900 dark:border-red-800/50 dark:bg-red-900/20 dark:text-red-200"
+                  : aiInsight.risk === "medium"
+                    ? "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800/50 dark:bg-amber-900/20 dark:text-amber-200"
+                    : "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:text-emerald-200"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <p className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide">
+                    <Bot size={13} /> AI Coach
+                  </p>
+                  <span className="relative inline-flex items-center">
+                    <button
+                      type="button"
+                      aria-label="About Reflection Studio"
+                      className="group inline-flex h-5 w-5 items-center justify-center rounded-full border border-current/40 bg-white/70 dark:bg-black/25"
+                    >
+                      <Info size={12} />
+                      <span
+                        role="tooltip"
+                        className="pointer-events-none absolute left-1/2 top-[calc(100%+6px)] z-10 hidden w-56 -translate-x-1/2 rounded-lg border border-border/70 bg-surface-elevated px-2 py-1.5 text-[10px] font-medium text-foreground shadow-[var(--soft-shadow)] group-hover:block group-focus-visible:block"
+                      >
+                        This card analyzes today&apos;s habits and drafts a focused reflection with one practical next step.
+                      </span>
+                    </button>
+                  </span>
+                </div>
+                <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide dark:bg-black/25">
+                  {aiInsight.risk} risk
                 </span>
-              </p>
+              </div>
+
+              <p className="mt-2 text-sm font-semibold">{aiInsight.title}</p>
+              <p className="mt-1 text-xs leading-relaxed">{aiInsight.suggestion}</p>
+              <div className="mt-2 rounded-xl border border-current/25 bg-white/55 px-2.5 py-2 text-[11px] leading-relaxed dark:bg-black/20">
+                Recommended next move: {completionRatio < 0.5 ? "Finish one 5-minute habit now" : "Close one meaningful habit in this block"}.
+              </div>
+              <button
+                type="button"
+                onClick={applyAiDraft}
+                className="mt-3 inline-flex min-h-9 items-center gap-1 rounded-full border border-current/40 bg-white/70 px-3 text-xs font-semibold transition hover:bg-white dark:bg-black/25 dark:hover:bg-black/35"
+              >
+                <Bot size={12} /> Generate reflection draft
+              </button>
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              {reflectionPrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => appendPrompt(prompt)}
-                  className="rounded-full border border-border/70 bg-surface-elevated px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-primary/10"
-                >
-                  {prompt}
-                </button>
-              ))}
+            <div className="relative z-10 mt-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Guided Prompts</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {reflectionPrompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => appendPrompt(prompt)}
+                    className="rounded-xl border border-border/70 bg-surface-elevated px-3 py-2 text-left text-xs font-medium text-foreground transition hover:border-primary/50 hover:bg-primary/10"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <textarea
-              value={reflection}
-              onChange={(event) => {
-                setReflection(event.target.value);
-                setReflectionDirty(true);
-              }}
-              rows={6}
-              className="mt-3 w-full rounded-2xl border border-border/70 bg-surface-elevated px-3 py-2 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-accent"
-              placeholder="What will I do first? What can block me? How will I finish strong today?"
-            />
+            <div className="relative z-10 mt-3 rounded-2xl border border-border/70 bg-surface-elevated p-3">
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Today&apos;s Reflection</label>
+              <textarea
+                value={reflection}
+                onChange={(event) => {
+                  setReflection(event.target.value);
+                  setReflectionDirty(true);
+                }}
+                rows={7}
+                className="mt-2 w-full rounded-2xl border border-border/70 bg-surface px-3 py-2 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-accent"
+                placeholder="Write your plan: first action, likely obstacle, and backup action if the day gets busy."
+              />
 
-            <div className="mt-3 flex items-center justify-between gap-2">
-              <p className="text-xs text-muted-foreground">{reflection.length}/280 characters</p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={clearReflection}
-                  className="inline-flex min-h-9 items-center gap-1 rounded-full border border-border px-3 text-xs font-semibold text-foreground transition hover:bg-surface-elevated"
-                >
-                  <Eraser size={12} /> Clear
-                </button>
-                <button
-                  type="button"
-                  onClick={saveReflection}
-                  disabled={!reflectionDirty && hasReflection}
-                  className="inline-flex min-h-9 items-center gap-1 rounded-full bg-primary/90 px-3 text-xs font-semibold text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-55"
-                >
-                  <BookmarkCheck size={12} /> Save reflection
-                </button>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">{reflection.length}/280 characters</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={clearReflection}
+                    className="inline-flex min-h-9 items-center gap-1 rounded-full border border-border px-3 text-xs font-semibold text-foreground transition hover:bg-surface-elevated"
+                  >
+                    <Eraser size={12} /> Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveReflection}
+                    disabled={!reflectionDirty && hasReflection}
+                    className="inline-flex min-h-9 items-center gap-1 rounded-full bg-primary/90 px-3 text-xs font-semibold text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-55"
+                  >
+                    <BookmarkCheck size={12} /> Save reflection
+                  </button>
+                </div>
               </div>
             </div>
           </article>
