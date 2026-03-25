@@ -15,7 +15,6 @@ import { useHabitsStore } from "@/features/habits/store/use-habits-store";
 import { getLastSyncAt, LAST_SYNC_EVENT } from "@/lib/storage/sync-queue";
 import {
   getStoredAppLanguage,
-  setStoredAppLanguage,
   subscribeToAppLanguage,
 } from "@/lib/i18n/language";
 import { t, translateTitle } from "@/lib/i18n/translations";
@@ -114,17 +113,6 @@ export function MobileAppShell({ children, title = "Dashboard" }: MobileAppShell
   const storedLastSyncedAt = useSyncExternalStore(subscribeToLastSync, readLastSyncAt, () => null);
   const language = useSyncExternalStore(subscribeToAppLanguage, getStoredAppLanguage, () => "en");
   const lastSyncedAt = syncingAny ? null : storedLastSyncedAt;
-
-  useEffect(() => {
-    if (!profileForSession?.language) {
-      return;
-    }
-
-    const nextLanguage = profileForSession.language === "bn" ? "bn" : "en";
-    if (nextLanguage !== language) {
-      setStoredAppLanguage(nextLanguage);
-    }
-  }, [language, profileForSession?.language]);
 
   const displayTitle = translateTitle(language, title);
   const pendingLabel = pendingTotal === 1 ? (language === "bn" ? "পরিবর্তন" : "change") : language === "bn" ? "পরিবর্তন" : "changes";

@@ -21,6 +21,12 @@ export function setStoredAppLanguage(language: AppLanguage) {
     return;
   }
 
+  const current = window.localStorage.getItem(APP_LANGUAGE_KEY);
+  if (current === language) {
+    document.documentElement.lang = language;
+    return;
+  }
+
   window.localStorage.setItem(APP_LANGUAGE_KEY, language);
   document.documentElement.lang = language;
   window.dispatchEvent(new Event(APP_LANGUAGE_EVENT));
